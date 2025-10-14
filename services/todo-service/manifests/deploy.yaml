@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: todo-service
+  name: todo-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-service
+  template:
+    metadata:
+      labels:
+        app: todo-service
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "opentelemetry/instrumentation"
+    spec:
+      containers:
+      - image: todo-service:v1
+        name: todo-service
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+          - name: SPRING_DATASOURCE_URL
+            value: "jdbc:mysql://my-mysql.default.svc.cluster.local.:3306/todo"
+          - name: SPRING_DATASOURCE_USERNAME
+            value: "todo"
+          - name: SPRING_DATASOURCE_PASSWORD
+            value: "mysecretPassword"
+          - name: RABBITMQ_HOST
+            value: "rabbitmq.default.svc.cluster.local"
+          - name: RABBITMQ_PORT
+            value: "5672"
+          - name: RABBITMQ_USERNAME
+            value: "guest"
+          - name: RABBITMQ_PASSWORD
+            value: "guest"
+          - name: VALIDATION_SERVICE_ENABLED
+            value: "false"
+          - name: VALIDATION_SERVICE_URL
+            value: "http://validation-service:3001"
+

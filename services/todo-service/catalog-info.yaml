@@ -1,0 +1,46 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: todo-service
+  description: Spring Boot REST API for managing todos with PostgreSQL database
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - java
+    - spring-boot
+    - rest-api
+    - postgresql
+spec:
+  type: service
+  lifecycle: experimental
+  owner: guests
+  providesApis:
+    - todo-api
+    - rabbitmq-events
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: todo-api
+  description: REST API for todo management
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: guests
+  definition: |
+    openapi: 3.0.0
+    info:
+      title: Todo API
+      version: 1.0.0
+    paths:
+      /todos:
+        get:
+          summary: Get all todos
+          responses:
+            '200':
+              description: List of todos
+        post:
+          summary: Create a new todo
+          responses:
+            '201':
+              description: Todo created

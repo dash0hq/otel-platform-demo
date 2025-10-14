@@ -1,0 +1,52 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+  namespace: default
+spec:
+  # Single replica for demo
+  replicas: 1
+
+  # Image configuration
+  image: rabbitmq:3.13-management
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+
+  # Persistence configuration
+  persistence:
+    storageClassName: standard
+    storage: "2Gi"
+
+  # RabbitMQ configuration
+  rabbitmq:
+    additionalPlugins:
+      - rabbitmq_management
+      - rabbitmq_prometheus
+
+    additionalConfig: |
+      # Memory configuration
+      vm_memory_high_watermark.relative = 0.6
+
+      # Disk free space
+      disk_free_limit.relative = 2.0
+
+      # Allow guest user from any host
+      loopback_users.guest = false
+
+      # Default user
+      default_user = guest
+      default_pass = guest
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "15692"

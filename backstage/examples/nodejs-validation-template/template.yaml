@@ -1,0 +1,86 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: nodejs-validation-service-template
+  title: Node.js Validation Service
+  description: A Node.js validation service with OpenTelemetry instrumentation
+  tags:
+    - nodejs
+    - validation
+    - opentelemetry
+spec:
+  owner: user:guest
+  type: service
+
+  parameters:
+    - title: Provide Service Information
+      required:
+        - serviceName
+        - description
+      properties:
+        serviceName:
+          title: Service Name
+          type: string
+          description: Name of the validation service (lowercase, no spaces)
+          pattern: '^[a-z0-9-]+$'
+          default: validation-service
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: A brief description of what this service validates
+          default: Service for validating todo names and other inputs
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the component
+          default: guests
+        port:
+          title: Service Port
+          type: number
+          description: Port number for the service
+          default: 3001
+
+  steps:
+    - id: fetch-base
+      name: Fetch Base
+      action: fetch:template
+      input:
+        url: ./content
+        values:
+          serviceName: ${{ parameters.serviceName }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          port: ${{ parameters.port }}
+
+    - id: publish
+      name: Publish to Local Directory
+      action: publish:local
+      input:
+        targetPath: services/${{ parameters.serviceName }}
+
+  output:
+    text:
+      - title: Local Path
+        content: Files created at ${{ steps['publish'].output.targetPath }}
+      - title: Next Steps
+        content: |
+          Your validation service has been created successfully!
+
+          To see it in the Backstage catalog:
+          1. Add this location to app-config.yaml under catalog.locations:
+             ```
+             - type: file
+               target: ../../services/${{ parameters.serviceName }}/catalog-info.yaml
+               rules:
+                 - allow: [Component]
+             ```
+          2. Restart Backstage to load the new service
+
+          Or to deploy immediately:
+          1. Build the Docker image: `docker build -t ${{ parameters.serviceName }}:v1 services/${{ parameters.serviceName }}`
+          2. Load the image into kind: `kind load docker-image --name plat-eng-day ${{ parameters.serviceName }}:v1`
+          3. Deploy to Kubernetes: `kubectl apply -f services/${{ parameters.serviceName }}/manifests/`
+          4. Apply the dashboard (if available)
+
+          The service includes OpenTelemetry auto-instrumentation and is ready for observability.

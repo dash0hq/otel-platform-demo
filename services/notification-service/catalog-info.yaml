@@ -1,0 +1,65 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: notification-service
+  description: Spring Boot notification service for sending notifications via RabbitMQ
+  tags:
+    - java
+    - spring-boot
+    - rabbitmq
+    - messaging
+spec:
+  type: service
+  lifecycle: experimental
+  owner: guests
+  providesApis:
+    - notification-api
+  consumesApis:
+    - rabbitmq-events
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: notification-api
+  description: Notification service API
+spec:
+  type: asyncapi
+  lifecycle: experimental
+  owner: guests
+  definition: |
+    asyncapi: 2.0.0
+    info:
+      title: Notification API
+      version: 1.0.0
+      description: Handles todo event notifications
+    channels:
+      todo-events:
+        subscribe:
+          summary: Subscribe to todo events
+          message:
+            payload:
+              type: object
+              properties:
+                eventType:
+                  type: string
+                  enum: [created, deleted]
+                todo:
+                  type: object
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: rabbitmq-events
+  description: RabbitMQ event bus for pub/sub messaging
+spec:
+  type: asyncapi
+  lifecycle: experimental
+  owner: guests
+  definition: |
+    asyncapi: 2.0.0
+    info:
+      title: Todo Events Queue
+      version: 1.0.0
+    channels:
+      todo-events:
+        description: Todo lifecycle events

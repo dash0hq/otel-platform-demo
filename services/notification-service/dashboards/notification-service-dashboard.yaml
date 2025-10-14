@@ -1,0 +1,198 @@
+apiVersion: perses.dev/v1alpha1
+kind: PersesDashboard
+metadata:
+  labels:
+    app.kubernetes.io/name: perses-dashboard
+    app.kubernetes.io/instance: notification-service
+    app.kubernetes.io/part-of: perses-operator
+  name: notification-service
+  namespace: default
+spec:
+  display:
+    name: Notification Service
+    description: Application metrics for the notification service
+  panels:
+    jvm-memory:
+      kind: Panel
+      spec:
+        display:
+          name: JVM Memory Usage
+          description: JVM memory usage in bytes
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              mode: list
+              position: bottom
+            thresholds: {}
+            visual:
+              areaOpacity: 0
+              connectNulls: true
+              display: line
+              lineWidth: 2
+              palette:
+                mode: auto
+              pointRadius: 2.5
+            yAxis:
+              format:
+                decimalPlaces: 2
+                unit: bytes
+              min: 0
+              show: true
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: sum(process_runtime_jvm_memory_usage_bytes{service_name="notification-service"})
+                    by (jvm_memory_type, jvm_memory_pool_name)
+                  seriesNameFormat: "{{ jvm_memory_type }}: {{ jvm_memory_pool_name }}"
+    notifications-created:
+      kind: Panel
+      spec:
+        display:
+          name: Notifications Created
+          description: Total number of created notifications sent over time
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              mode: list
+              position: bottom
+            thresholds: {}
+            visual:
+              areaOpacity: 0.3
+              connectNulls: false
+              display: line
+              lineWidth: 2
+              palette:
+                mode: auto
+              pointRadius: 2.5
+            yAxis:
+              format:
+                decimalPlaces: 0
+                unit: decimal
+              min: 0
+              show: true
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: rate(notifications_created_total[5m])
+                  seriesNameFormat: Created notifications/sec
+    notifications-deleted:
+      kind: Panel
+      spec:
+        display:
+          name: Notifications Deleted
+          description: Total number of deleted notifications sent over time
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              mode: list
+              position: bottom
+            thresholds: {}
+            visual:
+              areaOpacity: 0.3
+              connectNulls: false
+              display: line
+              lineWidth: 2
+              palette:
+                mode: auto
+              pointRadius: 2.5
+            yAxis:
+              format:
+                decimalPlaces: 0
+                unit: decimal
+              min: 0
+              show: true
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: rate(notifications_deleted_total[5m])
+                  seriesNameFormat: Deleted notifications/sec
+    notifications-total:
+      kind: Panel
+      spec:
+        display:
+          name: Total Notifications
+          description: Cumulative count of all notifications sent
+        plugin:
+          kind: TimeSeriesChart
+          spec:
+            legend:
+              mode: list
+              position: bottom
+            thresholds: {}
+            visual:
+              areaOpacity: 0
+              connectNulls: false
+              display: line
+              lineWidth: 2
+              palette:
+                mode: auto
+              pointRadius: 2.5
+            yAxis:
+              format:
+                decimalPlaces: 0
+                unit: decimal
+              min: 0
+              show: true
+        queries:
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: notifications_created_total
+                  seriesNameFormat: Created
+          - kind: TimeSeriesQuery
+            spec:
+              plugin:
+                kind: PrometheusTimeSeriesQuery
+                spec:
+                  query: notifications_deleted_total
+                  seriesNameFormat: Deleted
+  layouts:
+    - kind: Grid
+      spec:
+        display:
+          title: ""
+          collapse:
+            open: true
+        items:
+          - x: 0
+            "y": 0
+            width: 12
+            height: 8
+            content:
+              $ref: "#/spec/panels/notifications-created"
+          - x: 12
+            "y": 0
+            width: 12
+            height: 8
+            content:
+              $ref: "#/spec/panels/notifications-deleted"
+          - x: 0
+            "y": 8
+            width: 24
+            height: 8
+            content:
+              $ref: "#/spec/panels/notifications-total"
+          - x: 0
+            "y": 16
+            width: 24
+            height: 8
+            content:
+              $ref: "#/spec/panels/jvm-memory"
+  variables: []
+  duration: 1h
+  refreshInterval: 30s
+  datasources: {}

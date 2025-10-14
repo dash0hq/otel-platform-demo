@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: frontend
+  description: React frontend application for the todo application
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - react
+    - typescript
+    - frontend
+    - nginx
+spec:
+  type: website
+  lifecycle: experimental
+  owner: guests
+  consumesApis:
+    - todo-api

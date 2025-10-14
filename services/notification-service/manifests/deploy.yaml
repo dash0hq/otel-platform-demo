@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: notification-service
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "opentelemetry/instrumentation"
+    spec:
+      containers:
+      - image: notification-service:v1
+        name: notification-service
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3002
+          name: http
+        env:
+          - name: SPRING_DATASOURCE_URL
+            value: "jdbc:mysql://my-mysql.default.svc.cluster.local:3306/notification"
+          - name: SPRING_DATASOURCE_USERNAME
+            value: "notification"
+          - name: SPRING_DATASOURCE_PASSWORD
+            value: "mysecretPassword"
+          - name: RABBITMQ_HOST
+            value: "rabbitmq.default.svc.cluster.local"
+          - name: RABBITMQ_PORT
+            value: "5672"
+          - name: RABBITMQ_USERNAME
+            value: "guest"
+          - name: RABBITMQ_PASSWORD
+            value: "guest"

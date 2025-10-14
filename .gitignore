@@ -1,0 +1,259 @@
+# OpenTelemetry for Dummies - Demo Application
+# Comprehensive .gitignore for Java Spring Boot + React + Docker + OpenTelemetry
+
+###########################################
+# Java / Spring Boot / Gradle
+###########################################
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Maven (if anyone switches)
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Spring Boot
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Application properties with secrets (keep templates)
+**/application-local.properties
+**/application-dev.properties
+**/application-prod.properties
+
+# Log files
+*.log
+logs/
+spring.log
+
+###########################################
+# React / Node.js / Frontend
+###########################################
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Production builds
+build/
+dist/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+###########################################
+# Docker
+###########################################
+
+# Docker volumes and data
+docker-data/
+mysql_data/
+postgres_data/
+opensearch_data/
+
+# Docker compose overrides
+docker-compose.override.yml
+docker-compose.local.yml
+
+###########################################
+# IDE / Editor files
+###########################################
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+###########################################
+# Operating System
+###########################################
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+
+###########################################
+# OpenTelemetry / Observability
+###########################################
+
+# Downloaded OpenTelemetry JARs
+opentelemetry-javaagent*.jar
+otel-javaagent*.jar
+
+# Telemetry data exports (if running locally)
+traces/
+metrics/
+logs/
+telemetry/
+
+# Jaeger storage
+jaeger-data/
+
+# Prometheus data
+prometheus-data/
+
+###########################################
+# Security & Secrets
+###########################################
+
+# API keys and secrets
+.env.secrets
+secrets.yml
+secrets.yaml
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# Database dumps
+*.sql
+*.dump
+
+###########################################
+# Temporary & Cache files
+###########################################
+
+# Temporary files
+*.tmp
+*.temp
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Runtime directories
+.runtime/
+.pid/
+
+###########################################
+# Documentation (if auto-generated)
+###########################################
+
+# Auto-generated docs
+docs/build/
+site/
+
+###########################################
+# Testing
+###########################################
+
+# Test outputs
+test-results/
+test-reports/
+allure-results/
+
+# JUnit
+TEST-*.xml
+
+###########################################
+# Optional: Keep these patterns commented out
+# Uncomment if you need them
+###########################################
+
+# # Ignore all .env files
+# .env*
+
+# # Ignore all config files
+# *.config.js
+
+# # Ignore all certificate files
+# *.crt
+# *.key
+# *.pem
