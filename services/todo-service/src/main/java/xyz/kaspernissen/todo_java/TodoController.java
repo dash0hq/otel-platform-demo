@@ -68,6 +68,8 @@ public class TodoController {
 
             span.setAttribute("todo.name", todoName);
             span.setAttribute("todo.name.length", todoName.length());
+            // Example: Adding user email (sensitive data that will be redacted by collector)
+            span.setAttribute("user.email", "user@example.com");
 
             // Validate todo name using external service (creates distributed trace)
             // Controlled by VALIDATION_SERVICE_ENABLED environment variable

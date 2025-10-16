@@ -37,6 +37,10 @@ presets:
     enabled: true
   kubernetesEvents:
     enabled: true
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+    extractAllPodAnnotations: true
 
 service:
   enabled: true
@@ -92,6 +96,12 @@ config:
         - action: delete
           key: app.kubernetes.io/component
 
+    # Redact sensitive data from spans
+    attributes/redact:
+      actions:
+        - key: user.email
+          action: hash
+
   exporters:
     otlp/dash0:
       auth:
@@ -137,7 +147,7 @@ config:
         exporters: [otlp/dash0, otlphttp/prometheus]
       traces:
         receivers: [otlp]
-        processors: [batch]
+        processors: [batch, attributes/redact]
         exporters: [otlp/dash0, otlp/jaeger]
       logs:
         receivers: [otlp]
