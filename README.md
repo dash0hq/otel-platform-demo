@@ -1,6 +1,6 @@
 ![This tutorial is courtesy of Dash0](./images/dash0-logo.png)
 
-# Platform Engineering Day NA 2025 Demo
+# KubeCon NA 2025 Demo
 
 A demonstration of a modern platform engineering workflow featuring Backstage developer portal with OpenTelemetry-instrumented microservices. This demo showcases how platform teams can provide self-service capabilities for developers to create new services with built-in observability, complete with automatic telemetry pipeline including metrics, traces, and logs exported to both local observability tools and Dash0.
 
