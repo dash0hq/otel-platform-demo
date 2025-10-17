@@ -31,6 +31,8 @@ extraEnvs:
     value: admin
   - name: OPENSEARCH_PASSWORD
     value: SecureP@ssw0rd123
+  - name: MYSQL_PASSWORD
+    value: mysecretPassword
 
 presets:
   clusterMetrics:
@@ -85,6 +87,17 @@ config:
               - source_labels: [__meta_kubernetes_pod_name]
                 action: replace
                 target_label: kubernetes_pod_name
+
+    mysql:
+      endpoint: my-mysql.default.svc.cluster.local:3306
+      username: otel
+      password: ${env:MYSQL_PASSWORD}
+      collection_interval: 10s
+      initial_delay: 1s
+      statement_events:
+        digest_text_limit: 120
+        time_limit: 24h
+        limit: 250
 
   processors:
     batch: {}
@@ -142,7 +155,7 @@ config:
       - health_check
     pipelines:
       metrics:
-        receivers: [otlp, prometheus, rabbitmq]
+        receivers: [otlp, prometheus, rabbitmq, mysql]
         processors: [batch]
         exporters: [otlp/dash0, otlphttp/prometheus]
       traces:

@@ -35,4 +35,9 @@ kubectl exec my-mysql-0 -c mysql -- mysql -uroot -pmysecretPassword -e "CREATE U
 kubectl exec my-mysql-0 -c mysql -- mysql -uroot -pmysecretPassword -e "GRANT ALL PRIVILEGES ON notification.* TO 'notification'@'%';"
 kubectl exec my-mysql-0 -c mysql -- mysql -uroot -pmysecretPassword -e "FLUSH PRIVILEGES;"
 
+echo "Creating otel monitoring user..."
+kubectl exec my-mysql-0 -c mysql -- mysql -uroot -pmysecretPassword -e "CREATE USER IF NOT EXISTS 'otel'@'%' IDENTIFIED BY 'mysecretPassword';"
+kubectl exec my-mysql-0 -c mysql -- mysql -uroot -pmysecretPassword -e "GRANT SELECT, PROCESS, REPLICATION CLIENT ON *.* TO 'otel'@'%';"
+kubectl exec my-mysql-0 -c mysql -- mysql -uroot -pmysecretPassword -e "FLUSH PRIVILEGES;"
+
 echo "MySQL databases deployed successfully!"
