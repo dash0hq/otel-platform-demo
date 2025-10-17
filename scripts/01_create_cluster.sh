@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-CLUSTER_NAME=${CLUSTER_NAME:-plat-eng-day}
+CLUSTER_NAME=${CLUSTER_NAME:-kubecon-na}
 
 echo "Creating kind cluster: $CLUSTER_NAME"
 kind create cluster --name=$CLUSTER_NAME --config ./cluster/kind/multi-node.yaml

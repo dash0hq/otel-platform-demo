@@ -21,7 +21,7 @@ fi
 source .env
 
 echo "Starting deployment with the following configuration:"
-echo "  Cluster Name: ${CLUSTER_NAME:-plat-eng-day}"
+echo "  Cluster Name: ${CLUSTER_NAME:-kubecon-na}"
 echo "  Version: ${VERSION:-v1}"
 echo ""
 

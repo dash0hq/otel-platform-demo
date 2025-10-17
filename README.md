@@ -165,7 +165,7 @@ cd validation-service
 docker build -t validation-service:v1 .
 
 # Load image into Kind cluster
-kind load docker-image --name plat-eng-day validation-service:v1
+kind load docker-image --name kubecon-na validation-service:v1
 
 # Deploy to Kubernetes
 kubectl apply -f manifests/
