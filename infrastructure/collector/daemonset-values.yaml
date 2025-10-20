@@ -42,6 +42,9 @@ clusterRole:
     - apiGroups: [""]
       resources: ["nodes/proxy"]
       verbs: ["get"]
+    - apiGroups: [""]
+      resources: ["nodes"]
+      verbs: ["get", "list"]
 
 presets:
   logsCollection:
@@ -84,6 +87,24 @@ config:
 
   processors:
     batch: {}
+    resourcedetection:
+      detectors:
+        # note: later detectors override attributes provided by earlier detectors
+        - system
+        - ec2
+        - eks
+        - ecs
+        - gcp
+        - azure
+        - aks
+        - k8snode
+      timeout: 2s
+      system:
+        resource_attributes:
+          host.name:
+            # Do not collect host.name via system resource detector, as this would result in the podname being set as the
+            # hostname, see https://kubernetes.io/docs/concepts/containers/container-environment/#container-information.
+            enabled: false
 
     attributes/flatten:
       actions:
@@ -136,13 +157,13 @@ config:
     pipelines:
       metrics:
         receivers: [otlp, kubeletstats]
-        processors: [batch]
+        processors: [resourcedetection, batch]
         exporters: [otlp/dash0, otlphttp/prometheus]
       traces:
         receivers: [otlp]
-        processors: [batch]
+        processors: [resourcedetection, batch]
         exporters: [otlp/dash0, otlp/jaeger]
       logs:
         receivers: [otlp]
-        processors: [batch, attributes/flatten]
+        processors: [resourcedetection, batch, attributes/flatten]
         exporters: [otlp/dash0, opensearch/log]
