@@ -19,6 +19,3 @@ echo "Deploying Prometheus datasource..."
 kubectl apply -f ./infrastructure/perses/prometheus-datasource.yaml
 
 echo "Perses deployed successfully!"
-echo "Access Perses at: kubectl port-forward -n default svc/perses 8080:8080"
-echo ""
-echo "Note: Application dashboards will be deployed separately during the demo."
