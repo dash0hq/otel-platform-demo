@@ -3,7 +3,7 @@
 set -eo pipefail
 
 VERSION=${VERSION:-v1}
-CLUSTER_NAME=${CLUSTER_NAME:-kubecon-na}
+CLUSTER_NAME=${CLUSTER_NAME:-otel-platform-demo}
 
 echo "Building Docker images..."
 docker build -f ./services/frontend/Dockerfile -t frontend:$VERSION ./services/frontend

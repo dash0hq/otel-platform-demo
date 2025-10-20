@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-CLUSTER_NAME=${CLUSTER_NAME:-kubecon-na}
+CLUSTER_NAME=${CLUSTER_NAME:-otel-platform-demo}
 
 echo "Deleting kind cluster: $CLUSTER_NAME"
 kind delete cluster --name=$CLUSTER_NAME

@@ -1,6 +1,6 @@
 ![This tutorial is courtesy of Dash0](./images/dash0-logo.png)
 
-# KubeCon NA 2025 Demo
+# OpenTelemetry Platform Demo
 
 A demonstration of a modern platform engineering workflow featuring Backstage developer portal with OpenTelemetry-instrumented microservices. This demo showcases how platform teams can provide self-service capabilities for developers to create new services with built-in observability, complete with automatic telemetry pipeline including metrics, traces, and logs exported to both local observability tools and Dash0.
 
@@ -43,7 +43,7 @@ Execute the main orchestration script:
 Start the Backstage developer portal:
 
 ```bash
-./01_backstage.sh
+./01_start-demo.sh
 # Visit: http://localhost:3000
 ```
 
@@ -165,7 +165,7 @@ cd validation-service
 docker build -t validation-service:v1 .
 
 # Load image into Kind cluster
-kind load docker-image --name kubecon-na validation-service:v1
+kind load docker-image --name otel-platform-demo validation-service:v1
 
 # Deploy to Kubernetes
 kubectl apply -f manifests/

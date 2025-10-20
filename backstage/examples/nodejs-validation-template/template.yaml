@@ -79,7 +79,7 @@ spec:
 
           Or to deploy immediately:
           1. Build the Docker image: `docker build -t ${{ parameters.serviceName }}:v1 services/${{ parameters.serviceName }}`
-          2. Load the image into kind: `kind load docker-image --name kubecon-na ${{ parameters.serviceName }}:v1`
+          2. Load the image into kind: `kind load docker-image --name otel-platform-demo ${{ parameters.serviceName }}:v1`
           3. Deploy to Kubernetes: `kubectl apply -f services/${{ parameters.serviceName }}/manifests/`
           4. Apply the dashboard (if available)
 

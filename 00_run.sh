@@ -3,7 +3,7 @@
 set -eo pipefail
 
 echo "======================================"
-echo "Platform Engineering Day NA 2025 Demo - Setup"
+echo "OpenTelemetry Platform Engineering Demo - Setup"
 echo "======================================"
 echo ""
 
@@ -21,7 +21,7 @@ fi
 source .env
 
 echo "Starting deployment with the following configuration:"
-echo "  Cluster Name: ${CLUSTER_NAME:-kubecon-na}"
+echo "  Cluster Name: ${CLUSTER_NAME:-otel-platform-demo}"
 echo "  Version: ${VERSION:-v1}"
 echo ""
 
