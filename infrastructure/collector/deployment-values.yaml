@@ -64,6 +64,26 @@ config:
       username: guest
       password: guest
       collection_interval: 10s
+      metrics:
+        # Node metrics
+        rabbitmq.node.disk_free:
+          enabled: true
+        rabbitmq.node.mem_used:
+          enabled: true
+        rabbitmq.node.mem_limit:
+          enabled: true
+        rabbitmq.node.fd_used:
+          enabled: true
+        rabbitmq.node.fd_total:
+          enabled: true
+        rabbitmq.node.sockets_used:
+          enabled: true
+        rabbitmq.node.sockets_total:
+          enabled: true
+        rabbitmq.node.proc_used:
+          enabled: true
+        rabbitmq.node.proc_total:
+          enabled: true
 
     prometheus:
       config:
@@ -123,6 +143,15 @@ config:
             # Do not collect host.name via system resource detector, as this would result in the podname being set as the
             # hostname, see https://kubernetes.io/docs/concepts/containers/container-environment/#container-information.
             enabled: false
+
+    # Normalize DNS names by removing trailing dots from server.address
+    transform:
+      error_mode: ignore
+      metric_statements:
+        - context: resource
+          statements:
+            - replace_pattern(attributes["server.address"], "\\.$", "")
+
     attributes/flatten:
       actions:
         - action: insert
@@ -180,7 +209,7 @@ config:
     pipelines:
       metrics:
         receivers: [otlp, prometheus, rabbitmq, mysql]
-        processors: [resourcedetection, batch]
+        processors: [resourcedetection, transform, batch]
         exporters: [otlp/dash0, otlphttp/prometheus]
       traces:
         receivers: [otlp]

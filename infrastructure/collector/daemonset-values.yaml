@@ -36,6 +36,11 @@ extraEnvs:
   - name: OPENSEARCH_PASSWORD
     value: SecureP@ssw0rd123  
 
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
 clusterRole:
   create: true
   rules:

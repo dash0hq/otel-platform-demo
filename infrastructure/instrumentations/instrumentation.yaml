@@ -13,6 +13,8 @@ spec:
     type: always_on
   resource:
     addK8sUIDAttributes: true
+    resourceAttributes:
+      service.namespace: default
   java:
     env:
       - name: OTEL_TRACES_EXPORTER
