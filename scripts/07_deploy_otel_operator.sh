@@ -7,7 +7,7 @@ helm repo add jetstack https://charts.jetstack.io --force-update
 helm upgrade --install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true
 
 echo "Deploying OpenTelemetry Operator..."
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts || true
 helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator \
     --set "manager.collectorImage.repository=otel/opentelemetry-collector-k8s" \
     --namespace opentelemetry --create-namespace

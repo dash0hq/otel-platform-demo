@@ -3,15 +3,15 @@
 set -eo pipefail
 
 echo "Deploying MySQL Operator..."
-helm repo add mysql-operator https://mysql.github.io/mysql-operator/
+helm repo add mysql-operator https://mysql.github.io/mysql-operator/ || true
 helm repo update
-helm install mysql-operator mysql-operator/mysql-operator --namespace mysql-operator --create-namespace
+helm upgrade --install mysql-operator mysql-operator/mysql-operator --namespace mysql-operator --create-namespace
 
 echo "Waiting for MySQL Operator to be ready..."
-kubectl wait --for=condition=available --timeout=300s deployment/mysql-operator -n mysql-operator
+kubectl wait --for=condition=available --timeout=600s deployment/mysql-operator -n mysql-operator
 
 echo "Deploying MySQL InnoDB Cluster..."
-helm install my-mysql mysql-operator/mysql-innodbcluster \
+helm upgrade --install my-mysql mysql-operator/mysql-innodbcluster \
     --set credentials.root.user='root' \
     --set credentials.root.password='mysecretPassword' \
     --set credentials.root.host='%' \
@@ -20,7 +20,7 @@ helm install my-mysql mysql-operator/mysql-innodbcluster \
     --set tls.useSelfSigned=true
 
 echo "Waiting for MySQL to be ready..."
-kubectl wait --for=jsonpath='{.status.cluster.status}'=ONLINE --timeout=300s innodbcluster/my-mysql || true
+kubectl wait --for=jsonpath='{.status.cluster.status}'=ONLINE --timeout=600s innodbcluster/my-mysql || true
 sleep 10
 
 echo "Creating todo database and user..."
