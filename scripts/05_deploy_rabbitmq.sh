@@ -19,7 +19,6 @@ else
         else
             if [ $attempt -eq 3 ]; then
                 echo "❌ Failed to download RabbitMQ operator after 3 attempts"
-                echo "Please check your internet connection and try again"
                 exit 1
             fi
             echo "⚠️  Download failed, retrying in 5 seconds..."
@@ -41,13 +40,3 @@ kubectl wait --for=condition=AllReplicasReady rabbitmqcluster/rabbitmq -n defaul
 }
 
 echo "RabbitMQ deployed successfully!"
-echo ""
-echo "RabbitMQ Status:"
-kubectl get rabbitmqcluster -n default
-kubectl get pods -n default -l 'app.kubernetes.io/name=rabbitmq'
-echo ""
-echo "RabbitMQ Management UI will be available via port-forward:"
-echo "  kubectl port-forward -n default svc/rabbitmq 15672:15672"
-echo "  Then access: http://localhost:15672"
-echo "  Username: guest"
-echo "  Password: guest"
