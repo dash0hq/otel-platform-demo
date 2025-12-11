@@ -4,7 +4,7 @@ set -eo pipefail
 
 echo "Deploying Jaeger..."
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts || true
-helm upgrade --install jaeger jaegertracing/jaeger --values ./infrastructure/jaeger/values.yaml
+helm upgrade --install jaeger jaegertracing/jaeger --version 3.4.1 --values ./infrastructure/jaeger/values.yaml
 
 echo "Deploying Prometheus..."
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
