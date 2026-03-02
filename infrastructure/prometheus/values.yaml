@@ -46,4 +46,3 @@ serverFiles:
         - k8s.pod.name
         - k8s.replicaset.name
         - k8s.statefulset.name
-    scrape_configs: []
