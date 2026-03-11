@@ -1,4 +1,4 @@
-apiVersion: perses.dev/v1alpha1
+apiVersion: perses.dev/v1alpha2
 kind: Perses
 metadata:
   labels:
@@ -9,20 +9,15 @@ metadata:
   name: perses
   namespace: default
 spec:
-  image: persesdev/perses:v0.52.0
+  image: persesdev/perses:v0.53.0
   metadata:
     labels:
       instance: perses
   config:
     database:
       file:
-        folder: "/etc/perses/storage"
+        folder: "/perses"
         extension: "yaml"
-    schemas:
-      panels_path: "/etc/perses/cue/schemas/panels"
-      queries_path: "/etc/perses/cue/schemas/queries"
-      datasources_path: "/etc/perses/cue/schemas/datasources"
-      variables_path: "/etc/perses/cue/schemas/variables"
     ephemeral_dashboard:
       enable: false
       cleanup_interval: "1s"

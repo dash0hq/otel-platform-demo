@@ -3,7 +3,7 @@
 set -eo pipefail
 
 echo "Installing Perses Operator CRDs and deploying the operator..."
-kustomize build 'github.com/perses/perses-operator/config/default?ref=a324bdf0142c98271cfa5a17e91ae4eaf461bbe8' | kubectl apply -f -
+kustomize build 'github.com/perses/perses-operator/config/default?ref=v0.3.2' | kubectl apply --server-side --force-conflicts -f -
 
 echo "Waiting for Perses operator to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/perses-operator-controller-manager -n perses-operator-system

@@ -1,9 +1,12 @@
-apiVersion: perses.dev/v1alpha1
+apiVersion: perses.dev/v1alpha2
 kind: PersesDatasource
 metadata:
   name: prometheus
   namespace: default
 spec:
+  instanceSelector:
+    matchLabels:
+      app.kubernetes.io/instance: perses-sample
   config:
     default: true
     plugin:
