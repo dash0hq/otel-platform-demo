@@ -83,4 +83,9 @@ spec:
           3. Deploy to Kubernetes: `kubectl apply -f services/${{ parameters.serviceName }}/manifests/`
           4. Apply the dashboard (if available)
 
+          Alternatively, run the bundled deploy script which performs all of the above in one go:
+          ```
+          bash services/${{ parameters.serviceName }}/deploy.sh
+          ```
+
           The service includes OpenTelemetry auto-instrumentation and is ready for observability.
