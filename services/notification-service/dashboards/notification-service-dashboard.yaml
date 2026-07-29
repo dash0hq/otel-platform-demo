@@ -45,7 +45,7 @@ spec:
               plugin:
                 kind: PrometheusTimeSeriesQuery
                 spec:
-                  query: sum(process_runtime_jvm_memory_usage_bytes{service_name="notification-service"})
+                  query: sum(jvm_memory_used_bytes{service_name="notification-service"})
                     by (jvm_memory_type, jvm_memory_pool_name)
                   seriesNameFormat: "{{ jvm_memory_type }}: {{ jvm_memory_pool_name }}"
     notifications-created:

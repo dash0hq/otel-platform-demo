@@ -152,19 +152,26 @@ config:
           statements:
             - replace_pattern(attributes["server.address"], "\\.$", "")
 
-    attributes/flatten:
-      actions:
-        - action: insert
-          key: resource.app.kubernetes_io_component
-          from_attribute: app.kubernetes.io/component
+    # OpenSearch-only compatibility shim. Do NOT add this to the Dash0 pipeline.
+    # See infrastructure/collector/daemonset-values.yaml for the full explanation:
+    # OpenSearch nests attribute names on dots, so a bare `app` label collides with
+    # `app.kubernetes.io/*` and one shape gets rejected permanently. Scoped to the
+    # OpenSearch branch so Dash0 keeps the complete resource.
+    resource/opensearch-compat:
+      attributes:
         - action: delete
-          key: app.kubernetes.io/component
+          key: app
 
     # Redact sensitive data from spans
     attributes/redact:
       actions:
         - key: user.email
           action: hash
+
+  connectors:
+    # Tees the enriched logs stream into the OpenSearch pipeline, so that branch
+    # inherits every receiver and processor the chart's presets add above.
+    forward/opensearch: {}
 
   exporters:
     otlp/dash0:
@@ -215,7 +222,18 @@ config:
         receivers: [otlp]
         processors: [resourcedetection, batch, attributes/redact]
         exporters: [otlp/dash0, otlp/jaeger]
+      # Dash0 gets the full resource, including every pod label and annotation.
+      # The chart's presets inject extra receivers (k8sobjects) and processors
+      # (k8s_attributes) into this pipeline, so it stays the primary one. The
+      # OpenSearch branch is fed from it through the forward connector rather
+      # than re-declaring those components, which would silently drift the day
+      # the chart changes what it injects.
       logs:
         receivers: [otlp]
-        processors: [resourcedetection, batch, attributes/flatten]
-        exporters: [otlp/dash0, opensearch/log]
+        processors: [resourcedetection, batch]
+        exporters: [otlp/dash0, forward/opensearch]
+      # Same enriched logs, minus the keys OpenSearch cannot map.
+      logs/opensearch:
+        receivers: [forward/opensearch]
+        processors: [resource/opensearch-compat]
+        exporters: [opensearch/log]

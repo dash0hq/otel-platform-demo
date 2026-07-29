@@ -2,17 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: notification-service
+    app.kubernetes.io/name: notification-service
   name: notification-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: notification-service
+      app.kubernetes.io/name: notification-service
   template:
     metadata:
       labels:
-        app: notification-service
+        app.kubernetes.io/name: notification-service
       annotations:
         instrumentation.opentelemetry.io/inject-java: "opentelemetry/instrumentation"
     spec:

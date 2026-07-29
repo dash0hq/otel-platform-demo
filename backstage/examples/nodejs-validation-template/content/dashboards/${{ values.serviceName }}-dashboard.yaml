@@ -168,7 +168,7 @@ spec:
                 plugin:
                   kind: PrometheusTimeSeriesQuery
                   spec:
-                    query: rate(process_cpu_seconds_total{service_name="${{ values.serviceName }}"}[5m])
+                    query: container_cpu_usage{service_name="${{ values.serviceName }}"}
                     seriesNameFormat: CPU Usage
     layouts:
       - kind: Grid

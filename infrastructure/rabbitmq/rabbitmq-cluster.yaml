@@ -8,7 +8,9 @@ spec:
   replicas: 1
 
   # Image configuration
-  image: rabbitmq:3.13-management
+  # Needs RabbitMQ 4.x: the cluster operator's default startup probe hits
+  # /api/health/checks/reached-target-cluster-size, which 3.13 does not serve.
+  image: rabbitmq:4-management
 
   # Resource limits
   resources:

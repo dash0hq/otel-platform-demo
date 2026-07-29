@@ -1,7 +1,7 @@
 singleNode: true
 
-image:
-  tag: "2.14.0"
+# No image.tag override on purpose: the chart's appVersion is the single source of
+# truth, so the image tracks the chart instead of drifting behind it.
 
 extraEnvs:
   - name: discovery.type
