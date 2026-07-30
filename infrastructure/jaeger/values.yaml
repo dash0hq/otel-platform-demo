@@ -1,14 +1,12 @@
-# Jaeger v2 (chart 4.x). The v1 layout -- allInOne / agent / collector / query as
-# separate top-level keys -- no longer exists. v2 is a single binary configured like
-# an OpenTelemetry Collector, and the chart exposes it under `jaeger`.
+# Jaeger v2 (chart 4.x): a single binary configured like an OpenTelemetry
+# Collector, exposed by the chart under `jaeger`.
 #
-# The chart creates a single Service named `jaeger` carrying every port. The v1
-# split services (jaeger-collector, jaeger-query, jaeger-agent) are gone, so
-# anything addressing those names must use `jaeger` instead.
+# One Service named `jaeger` carries every port, so anything sending traces or
+# opening the UI addresses `jaeger` -- there are no separate collector/query/agent
+# services to target.
 #
-# `storage.type` has no effect on this path -- storage is declared in the config
-# below. In-memory is what the demo wants, since the cluster is recreated for
-# every run.
+# `storage.type` has no effect here; storage is declared in the config below.
+# In-memory suits the demo, since the cluster is recreated for every run.
 fullnameOverride: jaeger
 
 jaeger:
@@ -35,10 +33,10 @@ uiconfig:
 # docs point at for SPM with a Prometheus metrics backend.
 #
 # Note the flow: Jaeger receives spans over OTLP, stores them in memory, and the
-# spanmetrics connector derives RED metrics from the same spans and exposes them
-# on :8889 for Prometheus to scrape. jaeger_query then reads those metrics back
-# out of Prometheus for the Monitor tab. In v1 only the read half was configured,
-# so nothing ever produced the metrics and the tab stayed empty.
+# span_metrics connector derives RED metrics from the same spans and exposes them
+# on :8889 for Prometheus to scrape. jaeger_query then reads those metrics back out
+# of Prometheus for the Monitor tab. Both halves are required -- pointing
+# jaeger_query at Prometheus alone leaves the tab empty.
 userconfig:
   service:
     extensions: [jaeger_storage, jaeger_query, healthcheckv2]

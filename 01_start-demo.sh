@@ -27,10 +27,27 @@ cleanup() {
 # Register cleanup function to run on script exit
 trap cleanup EXIT INT TERM
 
+# Backstage reads ${...} references from its environment, so the values behind the
+# mcpChat block in app-config.yaml have to be exported before `yarn start`.
+if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+fi
+: "${DASH0_MCP_URL:=https://api.eu-west-1.aws.dash0.com/mcp}"
+export DASH0_MCP_URL
+
 echo "======================================"
 echo "Starting Demo Environment"
 echo "======================================"
 echo ""
+
+for var in ANTHROPIC_API_KEY DASH0_MCP_TOKEN; do
+    if [ -z "${!var:-}" ]; then
+        echo "⚠️  $var is not set in .env -- the 'Ask Dash0' chat page will not work."
+    fi
+done
 
 # Start all port-forwards in the background
 echo "Starting port-forwards..."

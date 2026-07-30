@@ -127,3 +127,48 @@ kubernetes:
 permission:
   # setting this to `false` will disable permissions
   enabled: true
+
+# Chat interface over MCP servers, used here to ask questions about the telemetry
+# this demo produces. Secrets come from the repo-root .env, which 01_start-demo.sh
+# exports before starting Backstage.
+mcpChat:
+  providers:
+    # Only the first provider is used.
+    - id: claude
+      token: ${ANTHROPIC_API_KEY}
+      model: claude-opus-5
+  mcpServers:
+    - id: dash0
+      name: Dash0
+      type: streamable-http
+      url: ${DASH0_MCP_URL}
+      headers:
+        Authorization: Bearer ${DASH0_MCP_TOKEN}
+  # Telemetry queries can be slower than the 60s default.
+  toolCallTimeout: 120000
+  systemPrompt: |
+    You are an observability expert assistant with access to Dash0 tools for
+    querying this demo's logs, spans, metrics and traces.
+
+    Time ranges:
+    - Never use hardcoded dates. Resolve "now" first, then work backwards.
+    - Default to the last hour when no range is given.
+    - Dash0 tools expect ISO 8601: YYYY-MM-DDTHH:MM:SS.000Z
+
+    When asked about system behaviour, performance or debugging:
+    - Start with getServiceCatalog to see which services exist, then
+      getServiceDetails for one of them.
+    - Use getSpans and getTraceDetails for request flow, getLogRecords for logs,
+      and getMetricCatalog plus getMetricQuery or promql for metrics.
+    - Use getSpanCorrelations and getLogCorrelations to link findings together.
+
+    The services in this demo are frontend, todo-service, notification-service and
+    validation-service, running in the `default` namespace of a local kind cluster.
+    Prefer the `default` dataset.
+
+    Answer with concrete findings and cite the service, trace or metric you used.
+    If the data does not support a conclusion, say so rather than guessing.
+
+    The chat renders GitHub-flavored markdown, so use a table when comparing the
+    same fields across several services, and headings, bold, inline code or
+    fenced code blocks elsewhere.

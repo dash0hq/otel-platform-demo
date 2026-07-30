@@ -37,107 +37,10 @@ import { RequirePermission } from '@backstage/plugin-permission-react';
 import { catalogEntityCreatePermission } from '@backstage/plugin-catalog-common/alpha';
 import { NotificationsPage } from '@backstage/plugin-notifications';
 import { SignalsDisplay } from '@backstage/plugin-signals';
-import { createUnifiedTheme, genPageTheme, UnifiedThemeProvider, palettes } from '@backstage/theme';
-
-const customTheme = createUnifiedTheme({
-  palette: {
-    ...palettes.dark,
-    primary: {
-      main: '#f9503c',
-      light: '#fa9266',
-      dark: '#e63e28',
-    },
-    background: {
-      default: '#18181b',
-      paper: '#1f1f22',
-    },
-    navigation: {
-      ...palettes.dark.navigation,
-      background: '#1f1f22',
-    },
-  },
-  defaultPageTheme: 'home',
-  pageTheme: {
-    home: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    documentation: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    tool: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    service: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    website: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    library: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    other: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    app: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    apis: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-  },
-  components: {
-    BackstageHeader: {
-      styleOverrides: {
-        header: {
-          background: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          backgroundImage: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          color: '#000000',
-        },
-        title: {
-          color: '#000000',
-        },
-        subtitle: {
-          color: '#000000',
-        },
-      },
-    },
-    BackstageItemCardHeader: {
-      styleOverrides: {
-        root: {
-          background: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          backgroundImage: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          color: '#000000',
-          '& .MuiTypography-root': {
-            color: '#000000',
-          },
-          '& h3, & h4, & h5, & h6': {
-            color: '#000000',
-          },
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        root: {
-          '&[data-testid="column-lifecycle"]': {
-            display: 'none',
-          },
-          '&[data-testid="column-system"]': {
-            display: 'none',
-          },
-          '&[data-testid="column-actions"]': {
-            display: 'none',
-          },
-        },
-        head: {
-          '&:has([title="Lifecycle"])': {
-            display: 'none',
-          },
-          '&:has([title="System"])': {
-            display: 'none',
-          },
-          '&:has([title="Actions"])': {
-            display: 'none',
-          },
-        },
-      },
-    },
-  },
-});
+import { McpChatPage } from '@backstage-community/plugin-mcp-chat';
 
 const app = createApp({
   apis,
-  themes: [{
-    id: 'custom-dark',
-    title: 'Custom Dark',
-    variant: 'dark',
-    Provider: ({ children }) => (
-      <UnifiedThemeProvider theme={customTheme} children={children} />
-    ),
-  }],
   bindRoutes({ bind }) {
     bind(catalogPlugin.externalRoutes, {
       createComponent: scaffolderPlugin.routes.root,
@@ -195,6 +98,7 @@ const routes = (
     <Route path="/settings" element={<UserSettingsPage />} />
     <Route path="/catalog-graph" element={<CatalogGraphPage />} />
     <Route path="/notifications" element={<NotificationsPage />} />
+    <Route path="/mcp-chat" element={<McpChatPage />} />
   </FlatRoutes>
 );
 

@@ -9,7 +9,7 @@
 import { createBackend } from '@backstage/backend-defaults';
 import { createBackendModule } from '@backstage/backend-plugin-api';
 import { createPublishLocalAction } from './scaffolder/actions';
-import { scaffolderActionsExtensionPoint } from '@backstage/plugin-scaffolder-node/alpha';
+import { scaffolderActionsExtensionPoint } from '@backstage/plugin-scaffolder-node';
 
 const backend = createBackend();
 
@@ -79,6 +79,14 @@ backend.add(import('@backstage/plugin-search-backend-module-techdocs'));
 
 // kubernetes plugin
 backend.add(import('@backstage/plugin-kubernetes-backend'));
+
+// mcp-chat plugin: chat UI backed by MCP servers (see mcpChat in app-config.yaml).
+// Loaded only when a provider key is present: the plugin throws during init if the
+// key is missing, and a backend plugin failing startup takes the whole backend down
+// with it -- which would break the catalog and scaffolder too.
+if (process.env.ANTHROPIC_API_KEY) {
+  backend.add(import('@backstage-community/plugin-mcp-chat-backend'));
+}
 
 // notifications and signals plugins
 backend.add(import('@backstage/plugin-notifications-backend'));

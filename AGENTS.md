@@ -260,7 +260,50 @@ believing a negative result, check the probe:
 Endpoint shapes matter too: `GET /todos` returns a Spring `Page` object, so
 `len(response)` counts the wrapper's 11 keys, not the todos. Use `totalElements`.
 
+## The mcp-chat plugin is patched locally
+
+The "Ask Dash0" page is `@backstage-community/plugin-mcp-chat`, wired to the Dash0
+MCP server through the `mcpChat` block in `backstage/app-config.yaml`. It carries a
+committed patch — `backstage/.yarn/patches/` plus the `patch:` dependency in
+`backstage/packages/app/package.json` — so `yarn install` reapplies it. Do not
+"clean up" either one.
+
+The patch is one line: the plugin renders assistant replies through
+`react-markdown` without passing `remarkPlugins`, so markdown tables arrived in
+the chat as raw pipe characters even though the plugin already ships the CSS to
+style them (`& table`, `& th, & td`). The patch adds
+`remarkPlugins: [remarkGfm]`.
+
+The dependency it imports is declared in `packageExtensions` in
+`backstage/.yarnrc.yml`, not in the patch. **Yarn resolves a `patch:` package's
+dependencies from the original npm manifest**, so a dependency added by the patch
+itself is silently never installed — the installed manifest claims it and nothing
+provides it. It must be `remark-gfm` v4: the plugin resolves its own nested
+`react-markdown` 10, while the hoisted `remark-gfm` 3 belongs to
+`@backstage/core-components` (paired with `react-markdown` 8) and targets the older
+unified/mdast generation. After installing, both coexist — v4 hoisted, v3 nested
+under `core-components`.
+
+Steering the model around a rendering gap instead of fixing it does not work:
+a `systemPrompt` instruction never to use tables was ignored, and it traded away
+the format that suited the data.
+
 ## Gotchas that have cost time
+
+- Backstage reads `app-config.yaml` **at startup**. Editing it while `yarn start`
+  runs either does nothing or dies in the hot reload with `write EPIPE`, leaving
+  the old value live — a stale model ID or MCP URL then looks like a server-side
+  404. Restart, and check the file's mtime against the backend process start time
+  before believing a config change is in effect.
+- `mcpChat` has no layout or rendering options — the schema is `providers`,
+  `mcpServers`, `toolCallTimeout`, `systemPrompt`, `conversationHistory`. Anything
+  about how replies look is in the plugin's own code.
+- The backend mounts mcp-chat only when `ANTHROPIC_API_KEY` is set
+  (`packages/backend/src/index.ts`). Without that guard a missing key throws at
+  plugin init and takes down the **whole** backend, so the catalog and template
+  vanish and it reads like a catalog problem. An unauthenticated
+  `curl /api/mcp-chat/health` returning **401 means the plugin loaded**; 404 means
+  it did not.
 
 - The daemonset collector is named **`otel-collector-agent`**, not
   `otel-collector` (the chart appends `-agent` despite `fullnameOverride`). Piping
