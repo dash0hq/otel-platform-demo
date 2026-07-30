@@ -60,7 +60,51 @@ Backstage reads the template from the local working tree, so template edits take
 effect on the next scaffold without pushing anywhere.
 
 The scaffolded service is deployed by its own `deploy.sh` (build → `kind load` →
-apply manifests → apply dashboards), not by `00_run.sh`.
+apply manifests → restart → apply dashboards), not by `00_run.sh`.
+
+Note the restart step. The image tag is always `v1`, so on a re-deploy the
+Deployment spec is byte-identical, `kubectl apply` is a no-op, and the pod keeps
+running the *previous* image while the script cheerfully prints "deployed". The
+script therefore records whether the Deployment already existed **before** the
+apply, and restarts only in that case — a first deploy needs no restart, since the
+apply itself creates the pod with the new image. If you edit `deploy.sh`, keep both
+halves of that behaviour.
+
+## Where dashboards come from
+
+There are two paths, and they must not be confused:
+
+| Dashboard | Applied by |
+|---|---|
+| `services/<name>/dashboards/` for services committed to this repo | `scripts/09_deploy_perses.sh` |
+| Dashboards of services scaffolded through Backstage | that service's own `deploy.sh` |
+
+Step 9 loops over `./services/*/dashboards`, guarded so it skips directories that
+do not exist — on a fresh boot `services/validation-service/` has not been
+scaffolded yet, and an unguarded glob fails the step.
+
+Nothing used to apply `services/*/dashboards`, so `notification-service`'s
+dashboard was never in the cluster and a query fix to it was unverifiable in situ.
+If you fix a dashboard, confirm Perses actually serves it — read the query back out
+of the API, not just the file:
+
+```bash
+kubectl port-forward -n default svc/perses 8000:8080
+curl -s localhost:8000/api/v1/dashboards | jq '.[].metadata.name'
+```
+
+### PersesDashboard v1alpha1 vs v1alpha2 are not interchangeable
+
+Both are served, so an old CR keeps working, but the spec shape differs — bumping
+the `apiVersion` alone produces a CR rejected for a missing `config` field:
+
+```
+v1alpha1  spec: {duration, layouts, panels, display, datasources, ...}
+v1alpha2  spec: {config: {<all of the above>}, instanceSelector: {...}}
+```
+
+`v1alpha2` is the storage version and everything in the repo now uses it. Copy the
+structure from an existing v1alpha2 dashboard rather than hand-writing it.
 
 ## Version policy: track latest, do not pin to old
 
@@ -178,6 +222,29 @@ kubectl logs -n opentelemetry daemonset/otel-collector-agent --all-containers \
 
 A dashboard "fix" is not done until every query on it returns a non-zero series
 count against live data.
+
+### Make your probe fail loudly, not quietly
+
+Several "bugs" found this way turned out to be broken measurements. Before
+believing a negative result, check the probe:
+
+- **`rate(...[5m])` needs several samples in the window.** One burst of traffic
+  then a query minutes later returns *zero series* while the underlying counter is
+  perfectly healthy. Generate traffic continuously for a minute or two, or query
+  the raw counter first to see whether the data exists at all. This also means demo
+  panels look empty if you click through faster than the traffic.
+- **`kubectl logs --since=Nm` silently returns nothing** if the activity was
+  outside the window. Cross-check with state that does not expire, e.g.
+  `rabbitmqctl list_queues name messages consumers` — drained queues with a live
+  consumer prove messages flowed.
+- **A wrong workload or path name makes `grep -c` report 0** because the command
+  errored, not because the pattern was absent. Confirm the resource exists first.
+- **Do not let an extraction default silently.** A regex that missed its target and
+  fell through to a placeholder value once made working validation code look broken.
+  Assert what you extracted before using it.
+
+Endpoint shapes matter too: `GET /todos` returns a Spring `Page` object, so
+`len(response)` counts the wrapper's 11 keys, not the todos. Use `totalElements`.
 
 ## Gotchas that have cost time
 
