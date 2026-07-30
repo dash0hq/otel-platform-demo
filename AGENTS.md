@@ -119,10 +119,9 @@ first.
 
 Known deliberate pins:
 
-- `scripts/06_deploy_observability.sh` pins the Jaeger chart to `3.4.1`. Moving to
-  4.x is a Jaeger v1 → v2 migration: the values schema was rewritten (`allInOne`,
-  `agent`, `collector`, `query` all replaced by a single `jaeger` block) and the
-  config model changed. This needs a real migration, not a version bump.
+- `scripts/06_deploy_observability.sh` pins the Jaeger chart to `4.12.0`. That chart
+  prints `EXPERIMENTAL - NO STABILITY GUARANTEES` and warns of breaking changes in
+  minor versions, so it gets bumped on purpose rather than drifting mid-demo.
 - `scripts/09_deploy_perses.sh` pins the perses-operator kustomize ref.
 
 Where a chart's `appVersion` should drive the image, do not override the image
@@ -267,7 +266,21 @@ Endpoint shapes matter too: `GET /todos` returns a Spring `Page` object, so
   `otel-collector` (the chart appends `-agent` despite `fullnameOverride`). Piping
   `kubectl logs daemonset/otel-collector` into `grep -c` silently reports 0
   because the command errors — a vacuous pass that looks like a clean result.
-- Jaeger's API is under a base path: `/jaeger/ui/api/services`, not `/api/services`.
+- Jaeger v2 exposes **one** Service, `jaeger`, carrying every port. The v1 split
+  services (`jaeger-collector`, `jaeger-query`, `jaeger-agent`) no longer exist, so
+  the collector's `otlp/jaeger` exporter and the port-forwards target `jaeger`. The
+  UI and API are at the root — `/api/services`, not the old `/jaeger/ui/api/...`.
+- Jaeger v2's config lives in a ConfigMap and the chart sets **no checksum
+  annotation** on the pod template, so `helm upgrade` after editing
+  `infrastructure/jaeger/values.yaml` updates the ConfigMap while the running pod
+  keeps the old config — silently. Step 6 restarts the Deployment when it already
+  existed; keep that if you touch the script.
+- Jaeger's Monitor tab (SPM) works via the `span_metrics` connector inside Jaeger:
+  it derives RED metrics from the spans it receives and exposes them on `:8889`,
+  the pod is annotated for Prometheus to scrape it, and `jaeger_query` reads them
+  back from Prometheus. The metrics are namespaced `traces_span_metrics_*`, and
+  `normalize_calls` / `normalize_duration` must stay on or Jaeger looks for
+  `calls` / `duration_bucket` and finds nothing.
 - The Prometheus service is `prometheus:9090` (not `prometheus-server:80`).
 - `todo-service` listens on `3000`, path `/todos`, and the field is `name` (not
   `title`). `validation-service` listens on `3001`.

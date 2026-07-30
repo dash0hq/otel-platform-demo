@@ -47,8 +47,8 @@ echo "  - Perses (port 8000 -> 8080)"
 kubectl port-forward svc/perses 8000:8080 >/dev/null 2>&1 &
 PIDS+=($!)
 
-echo "  - Jaeger Query (port 16686)"
-kubectl port-forward svc/jaeger-query 16686 >/dev/null 2>&1 &
+echo "  - Jaeger (port 16686)"
+kubectl port-forward svc/jaeger 16686 >/dev/null 2>&1 &
 PIDS+=($!)
 
 echo "  - Frontend (port 3001 -> 80)"
@@ -62,7 +62,7 @@ echo "Available services:"
 echo "  - OpenSearch Dashboards: http://localhost:5601"
 echo "  - Prometheus:             http://localhost:9090"
 echo "  - Perses:                 http://localhost:8000"
-echo "  - Jaeger Query:           http://localhost:16686"
+echo "  - Jaeger:                 http://localhost:16686"
 echo "  - Frontend:               http://localhost:3001"
 echo ""
 

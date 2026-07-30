@@ -63,7 +63,7 @@ kubectl port-forward -n default svc/frontend 3001:80
 
 ```bash
 # Jaeger UI
-kubectl port-forward -n default svc/jaeger-query 16686:16686
+kubectl port-forward -n default svc/jaeger 16686:16686
 # Visit: http://localhost:16686
 
 # Prometheus

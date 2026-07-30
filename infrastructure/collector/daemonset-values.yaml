@@ -150,7 +150,7 @@ config:
         insecure: true
 
     otlp/jaeger:
-      endpoint: jaeger-collector.default.svc.cluster.local:4317 
+      endpoint: jaeger.default.svc.cluster.local:4317 
       tls:
         insecure: true
 
