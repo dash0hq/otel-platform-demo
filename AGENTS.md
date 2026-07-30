@@ -239,6 +239,21 @@ believing a negative result, check the probe:
   consumer prove messages flowed.
 - **A wrong workload or path name makes `grep -c` report 0** because the command
   errored, not because the pattern was absent. Confirm the resource exists first.
+- **`{.items[0]}` after a rollout may be the terminating pod.** Reading env or files
+  from it shows the *old* values, which looks exactly like a change that failed to
+  apply. This one bit twice in a single session. Read the Deployment spec for intent,
+  and if you need the runtime value, iterate every pod rather than indexing one:
+
+  ```bash
+  kubectl get deploy <name> -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}'
+  for p in $(kubectl get pods -l app.kubernetes.io/name=<name> -o jsonpath='{.items[*].metadata.name}'); do
+    echo "$p: $(kubectl exec "$p" -- printenv VAR 2>/dev/null)"
+  done
+  ```
+
+  The same aliasing explains phantom "duplicate env vars": iterating
+  `.items[*].spec.containers[*].env[*]` across two pods mid-rollout prints both the
+  old and new value and reads like one container with a duplicated key.
 - **Do not let an extraction default silently.** A regex that missed its target and
   fell through to a placeholder value once made working validation code look broken.
   Assert what you extracted before using it.
