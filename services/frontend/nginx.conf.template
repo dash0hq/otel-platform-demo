@@ -27,8 +27,19 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Enable CORS for OpenTelemetry collector
-    location /v1/traces {
+    # Browser OTLP export, proxied to the collector so no ingest token ships in the JS
+    # bundle. Two details are load-bearing:
+    #
+    #   - the whole prefix is proxied, not just /v1/traces: the SDK also posts page
+    #     views, web vitals and errors to /v1/logs, which the SPA catch-all would
+    #     otherwise answer with index.html and lose silently;
+    #   - it is mounted under /telemetry/ because the SDK skips instrumenting requests
+    #     whose URL starts with its endpoint -- a bare-origin endpoint would suppress
+    #     spans for /todos too.
+    #
+    # The trailing slash on proxy_pass strips /telemetry, so /telemetry/v1/traces
+    # arrives as /v1/traces.
+    location /telemetry/ {
         if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
@@ -39,12 +50,12 @@ server {
             return 204;
         }
         
-        proxy_pass http://${OTEL_COLLECTOR_HOST}:${OTEL_COLLECTOR_PORT};
+        proxy_pass http://${OTEL_COLLECTOR_HOST}:${OTEL_COLLECTOR_PORT}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         add_header 'Access-Control-Allow-Origin' '*' always;
         add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
         add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;

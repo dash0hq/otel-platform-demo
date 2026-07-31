@@ -1,50 +1,33 @@
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-web';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
+import { init } from '@dash0/sdk-web';
 
-// Create a tracer provider
-const provider = new WebTracerProvider({
-  resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'frontend',
-    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0.0',
-    [SemanticResourceAttributes.SERVICE_NAMESPACE]: 'default',
-  }),
+// Browser telemetry: page views, navigation timing, web vitals, uncaught errors, and
+// a span per fetch/XHR with traceparent propagated to the backend.
+//
+// Telemetry is sent to this app's own origin, not the Dash0 ingress. nginx proxies it
+// to the collector, so no ingest token ships in the JS bundle and browser signals go
+// through the same pipeline as the backends -- reaching Jaeger and OpenSearch too.
+//
+// The `/telemetry` prefix is load-bearing: the SDK skips instrumenting any request
+// whose URL starts with an endpoint URL (isTransportRequest), so a bare-origin
+// endpoint silently suppresses spans and propagation for every same-origin call.
+//
+// Set REACT_APP_DASH0_URL + REACT_APP_DASH0_AUTH_TOKEN to send straight to Dash0
+// instead, accepting that the token becomes public.
+const url = process.env.REACT_APP_DASH0_URL || `${window.location.origin}/telemetry`;
+const authToken =
+  process.env.REACT_APP_DASH0_AUTH_TOKEN || 'collector-does-not-authenticate';
+
+init({
+  serviceName: 'frontend',
+  // Matches the backend services so Dash0 groups all four in one namespace.
+  serviceNamespace: 'default',
+  serviceVersion: '1.0.0',
+  endpoint: {
+    // The SDK appends /v1/traces and /v1/logs, so this must exclude /v1/*.
+    url,
+    // Required by the SDK's types; the collector's OTLP receiver does not authenticate.
+    authToken,
+  },
+  // No `propagators` entry: traceparent is always sent on same-origin requests, and
+  // every call this app makes is same-origin through its own nginx.
 });
-
-// Use environment variable or fallback to relative URL
-const getTracingUrl = () => {
-  // Use build-time environment variable if set, otherwise relative URL
-  return process.env.REACT_APP_OTEL_EXPORTER_URL || `${window.location.origin}/v1/traces`;
-};
-
-// Create and configure the OTLP exporter
-const exporter = new OTLPTraceExporter({
-  url: getTracingUrl(),
-});
-
-// Add span processor
-provider.addSpanProcessor(new BatchSpanProcessor(exporter));
-
-// Register the provider
-provider.register();
-
-// Register instrumentations
-registerInstrumentations({
-  instrumentations: [
-    new FetchInstrumentation({
-      clearTimingResources: true,
-    }),
-    new XMLHttpRequestInstrumentation({
-      clearTimingResources: true,
-    }),
-  ],
-});
-
-console.log('OpenTelemetry initialized for browser');
-
-export default provider;

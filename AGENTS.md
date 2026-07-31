@@ -83,8 +83,6 @@ Step 9 loops over `./services/*/dashboards`, guarded so it skips directories tha
 do not exist — on a fresh boot `services/validation-service/` has not been
 scaffolded yet, and an unguarded glob fails the step.
 
-Nothing used to apply `services/*/dashboards`, so `notification-service`'s
-dashboard was never in the cluster and a query fix to it was unverifiable in situ.
 If you fix a dashboard, confirm Perses actually serves it — read the query back out
 of the API, not just the file:
 
@@ -164,9 +162,8 @@ from the browser: copied URLs carry an opaque `s=` parameter that is zlib-compre
 UI state, which cannot be generated inside a scaffolder template. The org id is
 embedded in these URLs (it is an identifier, not a secret).
 
-The CI/CD tab was removed from the entity pages — there is no CI in this demo, so it
-only ever rendered an empty state. Removing it also made `Button` and `EmptyState`
-dead imports in `EntityPage.tsx`.
+There is no CI/CD tab on the entity pages: with no CI in this demo it only rendered
+an empty state.
 
 ## Service documentation (TechDocs)
 
@@ -307,20 +304,72 @@ Two things to preserve when editing this:
 
 If a new collision appears, add the offending bare key to that processor.
 
-## Two semantic-convention generations coexist
+## Browser telemetry uses the Dash0 web SDK
 
-The Java and Node.js auto-instrumentations are at different semconv versions.
-This is real and load-bearing for dashboards — do not "normalise" query names
-across runtimes:
+`services/frontend/src/tracing.js` initialises `@dash0/sdk-web` (page views, web
+vitals, errors, sessions, fetch/XHR spans), exporting to the app's own origin so nginx
+can proxy it to the collector: no ingest token in the JS bundle, and browser telemetry
+flows through the same pipeline as the backends, reaching Jaeger and OpenSearch too.
+`REACT_APP_DASH0_URL` / `REACT_APP_DASH0_AUTH_TOKEN` switch to direct ingestion and
+make the token public.
+
+Two ways it breaks silently:
+
+- **The endpoint needs the `/telemetry` path prefix.** The SDK skips instrumenting any
+  request whose URL starts with an endpoint URL, so a bare-origin endpoint suppresses
+  fetch spans and `traceparent` for every same-origin call. Web events keep flowing,
+  so RUM looks fine while nothing correlates with the backend.
+- **nginx must proxy the whole prefix**, not just `/v1/traces` — page views, web vitals
+  and errors go to `/v1/logs`, which the SPA catch-all would answer with `index.html`.
+  Probe: `curl -X POST .../telemetry/v1/logs -d '{}'` returns `{"partialSuccess":{}}`
+  from the collector, HTML from the SPA.
+
+The SDK has **no manual-span API** and does not depend on `@opentelemetry/api`, so
+`trace.getTracer()` yields a no-op tracer and adding a second SDK would
+double-instrument `fetch`. Custom `sendEvent()` calls are avoided: they carry no
+`traceId` (fired outside any span), duplicating the HTTP span without the correlation.
+`reportError` is used for caught failures only.
+
+## Semantic conventions are aligned on the stable HTTP names
+
+Every runtime emits the **stable** HTTP attributes. Node defaults to the legacy
+v1.7.0 names, so `infrastructure/instrumentations/instrumentation.yaml` sets
+`OTEL_SEMCONV_STABILITY_OPT_IN=http` under `spec.nodejs.env` to match the Java agent.
 
 | | Java (todo, notification) | Node.js (validation) |
 |---|---|---|
-| HTTP server | `http_server_request_duration_seconds_*` | `http_server_duration_milliseconds_*` |
-| Status code label | `http_response_status_code` | `http_status_code` |
+| HTTP server | `http_server_request_duration_seconds_*` | `http_server_request_duration_seconds_*` |
+| Status code label | `http_response_status_code` | `http_response_status_code` |
 | Runtime memory | `jvm_memory_used_bytes` | `v8js_memory_heap_used_bytes` |
 
-Note the unit difference (seconds vs milliseconds) — it affects panel units, not
-just names.
+**The opt-in belongs in the Instrumentation CR, not in a service.** The SDKs are
+injected by the OpenTelemetry Operator — the pods carry
+`instrumentation.opentelemetry.io/inject-{java,nodejs}` and the operator sets
+`NODE_OPTIONS=--require /otel-auto-instrumentation-nodejs/autoinstrumentation.js`.
+So `@opentelemetry/auto-instrumentations-node` in a service's `package.json` is **not**
+what instruments it at runtime (`npm start` is plain `node index.js`), and bumping
+that dependency changes nothing about the emitted attributes. The injected bundle is
+`autoinstrumentation-nodejs:0.78.0`, carrying `instrumentation-http` 0.220.0, which
+reads the variable via `semconvStabilityFromStr()`. `http` selects stable only;
+`http/dup` emits both generations.
+
+Flipping this renames metrics rather than erroring, so dashboards go **silent**:
+`http_server_duration_milliseconds_*` → `http_server_request_duration_seconds_*`, and
+the unit changes from milliseconds to **seconds**, which affects panel axis units too
+(the validation-service p95 panel is `unit: seconds`). After changing the opt-in,
+re-run every dashboard query against Prometheus with fresh traffic — a `rate(...[5m])`
+over a stale window returns 0 or NaN and looks identical to a broken query name.
+
+Legacy series linger for a few minutes after a rollout because they are still in
+Prometheus' retention from the previous pod. Check `k8s_pod_name` on the old series
+before concluding the opt-in did not take.
+
+The `frontend` agrees too, but by a different route: it uses `@dash0/sdk-web`
+(see its TechDocs), which emits the stable names natively. The env-var opt-in could
+never have worked there — there is no `process.env` in a browser.
+
+The frontend emits **no HTTP metrics at all**, only spans and logs, so metric-based
+dashboards will never show it.
 
 ## Verify against the cluster, never from memory
 
@@ -411,9 +460,8 @@ provides it. It must be `remark-gfm` v4: the plugin resolves its own nested
 unified/mdast generation. After installing, both coexist — v4 hoisted, v3 nested
 under `core-components`.
 
-Steering the model around a rendering gap instead of fixing it does not work:
-a `systemPrompt` instruction never to use tables was ignored, and it traded away
-the format that suited the data.
+Note that steering the model via `systemPrompt` is not a substitute for fixing a
+rendering gap — an instruction never to use tables was simply ignored.
 
 ## The chat can read the catalog too
 

@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { trace, context } from '@opentelemetry/api';
+import { reportError } from '@dash0/sdk-web';
 import './App.css';
 
-const tracer = trace.getTracer('frontend', '1.0.0');
+// The SDK's fetch instrumentation spans every request and propagates traceparent, so
+// the happy path needs no instrumentation here.
+//
+// reportError is needed because these failures are *caught* -- the @dash0/error
+// instrumentation only sees uncaught ones.
 
 function App() {
   const [todos, setTodos] = useState([]);
@@ -21,122 +25,79 @@ function App() {
   }, []);
 
   const loadTodos = async () => {
-    const span = tracer.startSpan('load_todos');
-    span.setAttributes({
-      'user.action': 'load_todos',
-      'component': 'TodoList'
-    });
+    try {
+      setIsLoading(true);
+      const response = await fetch('/todos');
 
-    // Set the span as active so fetch instrumentation creates child spans
-    return await context.with(trace.setSpan(context.active(), span), async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/todos');
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setTodos(data.content || []);
-        span.addEvent('Todos loaded successfully');
-        span.setAttributes({
-          'todos.count': data.content ? data.content.length : 0
-        });
-      } catch (err) {
-        console.error('Error loading todos:', err);
-        setError('Failed to load todos');
-        span.recordException(err);
-        span.setStatus({ code: 2, message: err.message });
-      } finally {
-        setIsLoading(false);
-        span.end();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    });
+
+      const data = await response.json();
+      setTodos(data.content || []);
+    } catch (err) {
+      console.error('Error loading todos:', err);
+      setError('Failed to load todos');
+      reportError(err, { attributes: { 'user.action': 'load_todos' } });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const createTodo = async (e) => {
     e.preventDefault();
 
-    const span = tracer.startSpan('create_todo');
-    span.setAttributes({
-      'user.action': 'create_todo',
-      'todo.name': newTodo,
-      'todo.name.length': newTodo.length
-    });
+    try {
+      setIsLoading(true);
+      setError('');
 
-    // Set the span as active so fetch instrumentation creates child spans
-    return await context.with(trace.setSpan(context.active(), span), async () => {
-      try {
-        setIsLoading(true);
-        setError('');
+      const response = await fetch('/todos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newTodo }),
+      });
 
-        const response = await fetch('/todos', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: newTodo }),
-        });
-
-        if (response.ok) {
-          const createdTodo = await response.json();
-          setTodos(prev => [...prev, createdTodo]);
-          setNewTodo('');
-          span.addEvent('Todo created successfully');
-          span.setAttributes({
-            'todo.id': createdTodo.id,
-            'operation.result': 'success'
-          });
-        } else {
-          throw new Error('Failed to create todo - validation failed');
-        }
-      } catch (err) {
-        console.error('Error creating todo:', err);
-        setError(err.message);
-        span.recordException(err);
-        span.setStatus({ code: 2, message: err.message });
-      } finally {
-        setIsLoading(false);
-        span.end();
+      if (response.ok) {
+        const createdTodo = await response.json();
+        setTodos(prev => [...prev, createdTodo]);
+        setNewTodo('');
+      } else {
+        throw new Error('Failed to create todo - validation failed');
       }
-    });
+    } catch (err) {
+      console.error('Error creating todo:', err);
+      setError(err.message);
+      reportError(err, {
+        attributes: { 'user.action': 'create_todo', 'todo.name': newTodo },
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const deleteTodo = async (id) => {
-    const span = tracer.startSpan('delete_todo');
-    span.setAttributes({
-      'user.action': 'delete_todo',
-      'todo.id': id
-    });
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/todos/${id}`, {
+        method: 'DELETE',
+      });
 
-    // Set the span as active so fetch instrumentation creates child spans
-    return await context.with(trace.setSpan(context.active(), span), async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch(`/todos/${id}`, {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          setTodos(prev => prev.filter(todo => todo.id !== id));
-          span.addEvent('Todo deleted successfully');
-          span.setAttributes({
-            'operation.result': 'success'
-          });
-        } else {
-          throw new Error('Failed to delete todo');
-        }
-      } catch (err) {
-        console.error('Error deleting todo:', err);
-        setError('Failed to delete todo');
-        span.recordException(err);
-        span.setStatus({ code: 2, message: err.message });
-      } finally {
-        setIsLoading(false);
-        span.end();
+      if (response.ok) {
+        setTodos(prev => prev.filter(todo => todo.id !== id));
+      } else {
+        throw new Error('Failed to delete todo');
       }
-    });
+    } catch (err) {
+      console.error('Error deleting todo:', err);
+      setError('Failed to delete todo');
+      reportError(err, {
+        attributes: { 'user.action': 'delete_todo', 'todo.id': id },
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadNotifications = async () => {
@@ -152,37 +113,26 @@ function App() {
   };
 
   const clearNotifications = async () => {
-    const span = tracer.startSpan('clear_notifications');
-    span.setAttributes({
-      'user.action': 'clear_notifications'
-    });
+    try {
+      setIsLoading(true);
+      const response = await fetch('/notifications', {
+        method: 'DELETE',
+      });
 
-    return await context.with(trace.setSpan(context.active(), span), async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/notifications', {
-          method: 'DELETE',
-        });
-
-        if (response.ok) {
-          setNotifications([]);
-          span.addEvent('Notifications cleared successfully');
-          span.setAttributes({
-            'operation.result': 'success'
-          });
-        } else {
-          throw new Error('Failed to clear notifications');
-        }
-      } catch (err) {
-        console.error('Error clearing notifications:', err);
-        setError('Failed to clear notifications');
-        span.recordException(err);
-        span.setStatus({ code: 2, message: err.message });
-      } finally {
-        setIsLoading(false);
-        span.end();
+      if (response.ok) {
+        setNotifications([]);
+      } else {
+        throw new Error('Failed to clear notifications');
       }
-    });
+    } catch (err) {
+      console.error('Error clearing notifications:', err);
+      setError('Failed to clear notifications');
+      reportError(err, {
+        attributes: { 'user.action': 'clear_notifications' },
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -47,9 +47,34 @@ without reading logs.
 
 ## Semantic conventions
 
-Node auto-instrumentation emits the **legacy** HTTP attributes — `http.method`,
-`http.status_code` — not the stable `http.request.method` /
-`http.response.status_code` that the Java services emit. Upgrading
-`@opentelemetry/auto-instrumentations-node` does not change this; the opt-in is
-`OTEL_SEMCONV_STABILITY_OPT_IN=http`. Dashboard queries for this service must use the
-legacy names.
+This service emits the **stable** HTTP semantic conventions —
+`http.request.method`, `http.response.status_code` — matching the Java services.
+
+Node auto-instrumentation defaults to the legacy v1.7.0 names (`http.method`,
+`http.status_code`); the demo opts in with `OTEL_SEMCONV_STABILITY_OPT_IN=http`.
+
+That variable is set in `infrastructure/instrumentations/instrumentation.yaml` under
+`spec.nodejs.env`, **not** in this service. The SDK is injected by the OpenTelemetry
+Operator: the pod is annotated `instrumentation.opentelemetry.io/inject-nodejs`, the
+operator adds an init container and sets
+`NODE_OPTIONS=--require /otel-auto-instrumentation-nodejs/autoinstrumentation.js`.
+The `@opentelemetry/auto-instrumentations-node` entry in `package.json` is therefore
+**not** what instruments this service at runtime — `npm start` runs plain
+`node index.js` — so changing that dependency has no effect on the emitted
+attributes. The `start:otel` script exists for running outside Kubernetes.
+
+Because of the opt-in, the metric names are the stable ones, in **seconds**:
+
+| Legacy (before the opt-in) | Stable (now) |
+|---|---|
+| `http_server_duration_milliseconds_count` | `http_server_request_duration_seconds_count` |
+| `http_server_duration_milliseconds_bucket` | `http_server_request_duration_seconds_bucket` |
+| `http_status_code` | `http_response_status_code` |
+
+The dashboard in `dashboards/` queries the stable names and sets the p95 axis to
+seconds. If you ever remove the opt-in, those four queries go silent rather than
+erroring.
+
+One exception remains: the `frontend` browser SDK still emits the legacy names. The
+opt-in is an environment variable and there is no `process.env` in a browser, so it
+cannot be applied there.
