@@ -12,6 +12,20 @@ backend:
   # auth:
   #   keys:
   #     - secret: ${BACKEND_SECRET}
+  auth:
+    externalAccess:
+      # The chat reaches the MCP actions endpoint over HTTP, so it needs
+      # credentials even though it runs inside this same backend.
+      # 01_start-demo.sh generates this token per run unless .env sets it.
+      - type: static
+        options:
+          token: ${BACKSTAGE_MCP_TOKEN}
+          subject: mcp-chat
+  # Actions from these plugins are registered with the Actions Registry, which is
+  # what plugin-mcp-actions-backend exposes as MCP tools.
+  actions:
+    pluginSources:
+      - catalog
   baseUrl: http://localhost:7007
   listen:
     port: 7007
@@ -88,21 +102,19 @@ catalog:
       rules:
         - allow: [Template]
 
-    # Services
+    # Infrastructure the services depend on. Registered statically because the
+    # deploy scripts fix what exists -- unlike the services, there is nothing here
+    # that appears or disappears while the demo is running.
     - type: file
-      target: ../../../services/todo-service/catalog-info.yaml
+      target: ../../../infrastructure/catalog-info.yaml
       rules:
-        - allow: [Component, API]
+        - allow: [Resource]
 
-    - type: file
-      target: ../../../services/frontend/catalog-info.yaml
-      rules:
-        - allow: [Component]
-
-    - type: file
-      target: ../../../services/notification-service/catalog-info.yaml
-      rules:
-        - allow: [Component]
+    # The services themselves are NOT listed here. They are discovered by the
+    # scaffolded-services entity provider (packages/backend/src/catalog), which
+    # scans services/*/catalog-info.yaml every 10 seconds. That is what lets a
+    # service scaffolded during the demo show up without editing this file or
+    # restarting the backend -- and disappear again when 02_cleanup.sh removes it.
 
     # Local example organizational data
     - type: file
@@ -128,6 +140,41 @@ permission:
   # setting this to `false` will disable permissions
   enabled: true
 
+# Backstage's own actions, served as MCP tools at
+# /api/mcp-actions/v1/<server key>.
+mcpActions:
+  # Must be false for a Claude provider. The default (true) prefixes the plugin id
+  # with a dot -- `catalog.query-catalog-entities` -- and the Anthropic API rejects
+  # the whole request with
+  #   tools.<n>.custom.name: String should match pattern '^[a-zA-Z0-9_-]{1,128}$'
+  # because a dot is not allowed in a tool name. That 400 breaks every chat message,
+  # not just catalog questions, since the tool list is sent with each request.
+  # With this off the tools arrive as `query-catalog-entities` etc., which do not
+  # collide with Dash0's camelCase tool names.
+  namespacedToolNames: false
+  servers:
+    catalog:
+      name: 'Backstage Catalog'
+      description: 'Read-only access to the software catalog'
+      # The catalog registers six actions, two of which mutate the catalog:
+      # register-entity (readOnly: false) and unregister-entity
+      # (destructive: true). Only the read-only ones are exposed.
+      #
+      # `exclude` is evaluated before `include`, so it is the authoritative rule
+      # -- a future catalog action that mutates is kept out even if it matches
+      # the include glob. The filter also applies to tools/call, not just tool
+      # discovery, so an excluded action cannot be invoked by name either.
+      filter:
+        include:
+          - id: 'catalog:*'
+            attributes:
+              readOnly: true
+        exclude:
+          - attributes:
+              readOnly: false
+          - attributes:
+              destructive: true
+
 # Chat interface over MCP servers, used here to ask questions about the telemetry
 # this demo produces. Secrets come from the repo-root .env, which 01_start-demo.sh
 # exports before starting Backstage.
@@ -144,16 +191,38 @@ mcpChat:
       url: ${DASH0_MCP_URL}
       headers:
         Authorization: Bearer ${DASH0_MCP_TOKEN}
+    # Backstage's own catalog, via the mcpActions server defined above. Combining
+    # the two servers is the point: the model can look up which components exist
+    # and who owns them, then ask Dash0 how they are behaving.
+    - id: backstage-catalog
+      name: Backstage Catalog
+      type: streamable-http
+      url: http://localhost:7007/api/mcp-actions/v1/catalog
+      headers:
+        Authorization: Bearer ${BACKSTAGE_MCP_TOKEN}
+      # Belt and braces. The mcpActions filter already withholds these two, but
+      # disabledTools drops them at discovery here as well, so a change to that
+      # filter cannot quietly hand the model a way to edit the catalog.
+      # Unprefixed because mcpActions.namespacedToolNames is false.
+      disabledTools:
+        - register-entity
+        - unregister-entity
   # Telemetry queries can be slower than the 60s default.
   toolCallTimeout: 120000
   systemPrompt: |
     You are an observability expert assistant with access to Dash0 tools for
     querying this demo's logs, spans, metrics and traces.
 
-    Time ranges:
-    - Never use hardcoded dates. Resolve "now" first, then work backwards.
-    - Default to the last hour when no range is given.
-    - Dash0 tools expect ISO 8601: YYYY-MM-DDTHH:MM:SS.000Z
+    Time ranges: you have no clock. Nothing in your context tells you the current
+    date, so never write an absolute timestamp -- one guessed from training data
+    can land months away from now and return an empty result that looks like a
+    real "no data" answer.
+    - Always use relative references, which Dash0 resolves against its own clock:
+      from "now-15m" / "now-1h" / "now-24h", to "now".
+    - Omitting timeRange entirely is also safe; it defaults to the last hour.
+    - Only use an ISO 8601 timestamp (YYYY-MM-DDTHH:MM:SS.000Z) when the user
+      supplies the date themselves, or when you are narrowing to a window you read
+      out of an earlier tool result.
 
     When asked about system behaviour, performance or debugging:
     - Start with getServiceCatalog to see which services exist, then
@@ -164,7 +233,12 @@ mcpChat:
 
     The services in this demo are frontend, todo-service, notification-service and
     validation-service, running in the `default` namespace of a local kind cluster.
-    Prefer the `default` dataset.
+
+    Datasets: every Dash0 tool takes a `dataset` argument. Unless the user names a
+    different one, always pass `default` -- it is where this demo's telemetry lands,
+    and it is already known, so there is no need to discover it first. Never leave
+    the argument out. Other datasets exist in this account (dash0-internal,
+    dash0-demo, claude) and none contain this demo's data.
 
     Answer with concrete findings and cite the service, trace or metric you used.
     If the data does not support a conclusion, say so rather than guessing.

@@ -9,7 +9,7 @@ metadata:
     - validation
     - opentelemetry
 spec:
-  owner: user:guest
+  owner: group:default/platform-team
   type: service
 
   parameters:
@@ -33,8 +33,14 @@ spec:
         owner:
           title: Owner
           type: string
-          description: Owner of the component
-          default: guests
+          description: Team that will own the component
+          default: quality-team
+          enum:
+            - quality-team
+            - platform-team
+            - todo-team
+            - notifications-team
+            - web-team
         port:
           title: Service Port
           type: number
@@ -67,17 +73,12 @@ spec:
         content: |
           Your validation service has been created successfully!
 
-          To see it in the Backstage catalog:
-          1. Add this location to app-config.yaml under catalog.locations:
-             ```
-             - type: file
-               target: ../../services/${{ parameters.serviceName }}/catalog-info.yaml
-               rules:
-                 - allow: [Component]
-             ```
-          2. Restart Backstage to load the new service
+          It will appear in the catalog on its own within about 10 seconds -- the
+          catalog scans services/*/catalog-info.yaml, so there is nothing to add to
+          app-config.yaml and no need to restart Backstage. Its TechDocs are
+          generated on first view from the mkdocs.yml that was scaffolded with it.
 
-          Or to deploy immediately:
+          To deploy it:
           1. Build the Docker image: `docker build -t ${{ parameters.serviceName }}:v1 services/${{ parameters.serviceName }}`
           2. Load the image into kind: `kind load docker-image --name otel-platform-demo ${{ parameters.serviceName }}:v1`
           3. Deploy to Kubernetes: `kubectl apply -f services/${{ parameters.serviceName }}/manifests/`

@@ -38,6 +38,13 @@ fi
 : "${DASH0_MCP_URL:=https://api.eu-west-1.aws.dash0.com/mcp}"
 export DASH0_MCP_URL
 
+# The chat talks to Backstage's own MCP actions endpoint over HTTP, so it needs a
+# token even though both sides live in the same backend. Nothing outside this
+# machine uses it, so generate a fresh one per run rather than storing a secret --
+# set BACKSTAGE_MCP_TOKEN in .env only if you want a stable value.
+: "${BACKSTAGE_MCP_TOKEN:=$(openssl rand -hex 32)}"
+export BACKSTAGE_MCP_TOKEN
+
 echo "======================================"
 echo "Starting Demo Environment"
 echo "======================================"

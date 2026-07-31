@@ -106,6 +106,133 @@ v1alpha2  spec: {config: {<all of the above>}, instanceSelector: {...}}
 `v1alpha2` is the storage version and everything in the repo now uses it. Copy the
 structure from an existing v1alpha2 dashboard rather than hand-writing it.
 
+## Services are discovered, not listed
+
+`catalog.locations` in `app-config.yaml` deliberately does **not** list the services.
+A custom entity provider —
+`backstage/packages/backend/src/catalog/scaffoldedServicesProvider.ts`, registered in
+`packages/backend/src/index.ts` — scans `services/*/catalog-info.yaml` every 10
+seconds and emits one `Location` entity per file.
+
+This is what makes the scaffolder demo work end to end: a service created in
+Backstage appears in the catalog in about 10 seconds with no config edit and no
+restart, and disappears again when `02_cleanup.sh` deletes the directory. Verified
+in both directions. Do not "tidy up" by adding the services back to
+`catalog.locations` — you would then have two sources for the same entity.
+
+Two details matter if you touch it:
+
+- It emits `Location` entities rather than parsed components, so Backstage's own
+  file-location processor does the reading. That is why the multi-document
+  `catalog-info.yaml` files (todo-service and notification-service each declare a
+  Component plus APIs) work without any parsing in the provider.
+- The mutation is `type: 'full'`, which is what makes deletions propagate. A
+  `delta` mutation would leave removed services in the catalog forever.
+
+Note that the backend database is `better-sqlite3` with `connection: ':memory:'`, so
+anything registered only in Backstage's own DB — such as a `catalog:register`
+scaffolder step — is lost on every restart. Scanning the filesystem sidesteps that
+entirely.
+
+## Infrastructure is in the catalog too
+
+`infrastructure/catalog-info.yaml` declares the supporting infrastructure as
+`Resource` entities — mysql, rabbitmq, otel-collector, dash0, opensearch,
+prometheus, jaeger, perses and the kind cluster — all owned by `platform-team`.
+
+It is registered **statically** in `catalog.locations`, unlike the services. That
+split is deliberate: services appear and disappear during the demo so they are
+scanned, while the deploy scripts fix what infrastructure exists. The install-time
+operators (cert-manager, mysql-operator, opentelemetry-operator, RabbitMQ cluster
+operator) are intentionally omitted — no service talks to them and they would just
+add nodes to the dependency graph.
+
+`spec.dependsOn` wires the graph: frontend → todo-service, notification-service,
+collector; each Java service → mysql, rabbitmq, collector; todo-service →
+validation-service; collector → dash0, opensearch, jaeger; jaeger and perses →
+prometheus. Check for dangling references after editing, because Backstage accepts
+a `dependsOn` pointing at nothing and simply renders a broken graph:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  'http://localhost:7007/api/catalog/entities?fields=kind,metadata.name,metadata.namespace,spec.dependsOn'
+```
+
+Every component also carries a `metadata.links` entry to its Dash0 service page.
+Use the `/goto/services/details?...&service_name=<name>` form, **not** a URL copied
+from the browser: copied URLs carry an opaque `s=` parameter that is zlib-compressed
+UI state, which cannot be generated inside a scaffolder template. The org id is
+embedded in these URLs (it is an identifier, not a secret).
+
+The CI/CD tab was removed from the entity pages — there is no CI in this demo, so it
+only ever rendered an empty state. Removing it also made `Button` and `EmptyState`
+dead imports in `EntityPage.tsx`.
+
+## Service documentation (TechDocs)
+
+Each service has `mkdocs.yml` plus `docs/{index,architecture,operations}.md`, and a
+`backstage.io/techdocs-ref: dir:.` annotation in its `catalog-info.yaml`. The
+validation-service copies live in the scaffolder template, so a freshly scaffolded
+service arrives with its own docs — change them there, not only in
+`services/validation-service/`.
+
+Generation is `builder: local` + `generator.runIn: docker`, so the first docs view
+pulls `spotify/techdocs` (~705 MB) and takes a while; every build after that is
+sub-second. Pre-pull it before a live demo.
+
+**Mermaid needs two independent pieces, and one without the other silently fails:**
+
+1. `mkdocs.yml` must register the fence, because `techdocs-core` (1.6.1 in the
+   image) does *not* do it by default — a ```mermaid block otherwise renders as a
+   plain text code block (`<div class="language-text highlight">`):
+   ```yaml
+   markdown_extensions:
+     - pymdownx.superfences:
+         custom_fences:
+           - name: mermaid
+             class: mermaid
+             format: !!python/name:pymdownx.superfences.fence_code_format
+   ```
+2. `backstage-plugin-techdocs-addon-mermaid` must be added as `<Mermaid />` in
+   **both** `packages/app/src/App.tsx` and
+   `packages/app/src/components/catalog/EntityPage.tsx` — the standalone docs route
+   and the entity Docs tab are separate TechDocs viewers. Note the package is not
+   under the `@backstage-community` scope.
+
+To check the mkdocs half without a browser, grep the built output for
+`class="mermaid"`:
+
+```bash
+grep -c 'class="mermaid"' \
+  backstage/node_modules/@backstage/plugin-techdocs-backend/static/docs/default/component/todo-service/architecture/index.html
+```
+
+Also note `index.md` is served at the docs **root**, not at `/index/` — probing
+`/api/techdocs/static/docs/default/component/<svc>/index/` returns 404 even when the
+docs are fine.
+
+## Ownership is spread across teams
+
+`backstage/examples/org.yaml` defines `platform-team`, `web-team`, `todo-team`,
+`notifications-team` and `quality-team` under an `engineering` group, each with a
+member, so the catalog looks like a multi-team platform rather than one owner. The
+`guests` group and `guest` user are kept because the guest sign-in provider resolves
+to that user; deleting the group would leave a dangling `memberOf`.
+
+Owners: frontend → web-team, todo-service (+ `todo-api`) → todo-team,
+notification-service (+ `notification-api`, `rabbitmq-events`) → notifications-team,
+validation-service → quality-team, and the template itself →
+`group:default/platform-team`. The template's `owner` parameter is an enum of these
+teams, defaulting to `quality-team`.
+
+Each component carries exactly **one** tag (`react`, `spring-boot`, `nodejs`).
+
+The catalog and API tables are given explicit column lists in `App.tsx`
+(`catalogColumns` / `apiColumns`) to drop columns that carry no information here —
+Lifecycle and System on the catalog page, System and Tags on the API page. They are
+listed explicitly rather than filtered out of `defaultColumnsFunc` by title, because
+those titles are translated strings and matching on them breaks silently.
+
 ## Version policy: track latest, do not pin to old
 
 The demo intentionally tracks current upstream versions. Do not "fix" a breakage
@@ -287,6 +414,38 @@ under `core-components`.
 Steering the model around a rendering gap instead of fixing it does not work:
 a `systemPrompt` instruction never to use tables was ignored, and it traded away
 the format that suited the data.
+
+## The chat can read the catalog too
+
+`mcpChat.mcpServers` is a list, and the second entry points at Backstage's own
+`@backstage/plugin-mcp-actions-backend`, which serves registered actions as MCP
+tools at `/api/mcp-actions/v1/<server key>`. That is what lets one conversation ask
+which components exist and then ask Dash0 how they are behaving —
+`query-catalog-entities` and Dash0's tools land in the same tool list.
+
+Three things about it are not obvious:
+
+- **`mcpActions.namespacedToolNames` must be `false` for a Claude provider.** The
+  default prefixes the plugin id with a dot (`catalog.query-catalog-entities`), and
+  the Anthropic API rejects the request with
+  `tools.<n>.custom.name: String should match pattern '^[a-zA-Z0-9_-]{1,128}$'`.
+  A dot is not a legal tool-name character. Because the tool list goes out with
+  every message, this 400s **all** chat, not just catalog questions.
+- **Only the read-only catalog actions are exposed.** The catalog registers six;
+  `register-entity` (`readOnly: false`) and `unregister-entity`
+  (`destructive: true`) are kept out by the `mcpActions` filter and again by
+  `disabledTools`. `exclude` is evaluated before `include`, so it wins, and the
+  filter is applied on `tools/call` as well as discovery — an excluded action
+  cannot be invoked by guessing its name. Expect exactly four tools:
+  `query-catalog-entities`, `get-catalog-entity`, `get-catalog-model-description`,
+  `validate-entity`. Set `disabledTools` names **without** the plugin prefix while
+  namespacing is off.
+- **The token is generated per run.** The chat calls the endpoint over HTTP even
+  though both halves are the same backend, so it needs credentials;
+  `01_start-demo.sh` mints `BACKSTAGE_MCP_TOKEN` with `openssl rand` unless `.env`
+  sets one, and `backend.auth.externalAccess` accepts it as a static token. Nothing
+  secret is stored for this. An action only becomes visible if its plugin is listed
+  in `backend.actions.pluginSources`.
 
 ## Gotchas that have cost time
 

@@ -1,13 +1,84 @@
 ---
+# Org data for the demo. The point of having several teams is to make the catalog
+# look like a real platform: each component has a different owner, so filtering by
+# owner, the ownership cards on entity pages and "who do I ask about this" all have
+# something to show.
+#
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-group
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: engineering
+  description: Umbrella group for every product team
+spec:
+  type: business-unit
+  children:
+    - platform-team
+    - web-team
+    - todo-team
+    - notifications-team
+    - quality-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform-team
+  description: Owns the cluster, the collector and the scaffolder templates
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: web-team
+  description: Owns the customer-facing web experience
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: todo-team
+  description: Owns the todo domain and its public API
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: notifications-team
+  description: Owns event-driven notifications and the messaging contracts
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: quality-team
+  description: Owns input validation and data-quality services
+spec:
+  type: team
+  parent: engineering
+  children: []
+---
+# guests is kept because the guest sign-in provider resolves to this user;
+# removing the group would leave a dangling memberOf reference in the catalog.
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-user
 apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
   name: guest
 spec:
-  memberOf: [guests]
+  memberOf: [guests, platform-team]
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-group
 apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
@@ -15,3 +86,58 @@ metadata:
 spec:
   type: team
   children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: mia
+  description: Frontend engineer
+spec:
+  profile:
+    displayName: Mia Andersen
+    email: mia@example.com
+  memberOf: [web-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: tom
+  description: Backend engineer, todo domain
+spec:
+  profile:
+    displayName: Tom Berg
+    email: tom@example.com
+  memberOf: [todo-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: nadia
+  description: Backend engineer, event-driven systems
+spec:
+  profile:
+    displayName: Nadia Khan
+    email: nadia@example.com
+  memberOf: [notifications-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: quinn
+  description: Quality engineer
+spec:
+  profile:
+    displayName: Quinn Rivera
+    email: quinn@example.com
+  memberOf: [quality-team]
+---
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: pia
+  description: Platform engineer
+spec:
+  profile:
+    displayName: Pia Lindqvist
+    email: pia@example.com
+  memberOf: [platform-team]
