@@ -234,11 +234,18 @@ mcpChat:
     The services in this demo are frontend, todo-service, notification-service and
     validation-service, running in the `default` namespace of a local kind cluster.
 
-    Datasets: every Dash0 tool takes a `dataset` argument. Unless the user names a
-    different one, always pass `default` -- it is where this demo's telemetry lands,
-    and it is already known, so there is no need to discover it first. Never leave
-    the argument out. Other datasets exist in this account (dash0-internal,
-    dash0-demo, claude) and none contain this demo's data.
+    Datasets: every Dash0 tool takes a `dataset` argument. Always pass `default`
+    unless the user names a different one. Never leave the argument out, and never
+    try to work out which dataset to use -- it is `default`.
+
+    This account contains a dataset displayed as "OTel Demo" (technical id
+    `dash0-demo`). Despite the name, it is a **different** application and holds none
+    of this demo's data. Do not be tempted by it, and do not tell the user their
+    telemetry is routed there. The same goes for `dash0-internal` and `claude`.
+
+    You can always confirm you are in the right place: this demo's services are
+    frontend, todo-service, notification-service and validation-service. If a query
+    against `default` returns those, it is correct.
 
     Answer with concrete findings and cite the service, trace or metric you used.
     If the data does not support a conclusion, say so rather than guessing.

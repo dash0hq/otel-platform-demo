@@ -1,0 +1,187 @@
+diff --git a/dist/providers/claude-provider.cjs.js b/dist/providers/claude-provider.cjs.js
+index 7b79d0d209c2df21bb0c1a05c4d2fae6f4771602..9bea9ec53cedfcc5393ac00815f29ed6114bffdd 100644
+--- a/dist/providers/claude-provider.cjs.js
++++ b/dist/providers/claude-provider.cjs.js
+@@ -73,6 +73,13 @@ class ClaudeProvider extends baseProvider.LLMProvider {
+       max_tokens: this.maxTokens ?? 4096,
+       messages: claudeMessages
+     };
++    // The Anthropic Messages API takes the system prompt as a top-level `system`
++    // parameter, not as a message, and convertToAnthropicFormat drops role: "system".
++    // Without this, mcpChat.systemPrompt is silently discarded.
++    const systemPrompt = messages.filter((msg) => msg.role === "system").map((msg) => msg.content).filter(Boolean).join("\n\n");
++    if (systemPrompt) {
++      request.system = systemPrompt;
++    }
+     if (this.temperature !== void 0) {
+       request.temperature = this.temperature;
+     }
+@@ -110,18 +117,49 @@ class ClaudeProvider extends baseProvider.LLMProvider {
+     };
+   }
+   convertToAnthropicFormat(messages) {
+-    return messages.filter((msg) => msg.role !== "system").map((msg) => {
++    // Tool interactions must be Anthropic content blocks (tool_use / tool_result).
++    // Flattening them to text loses the link between a call and its result, and leaves
++    // an assistant tool-call turn with empty string content, which the API rejects.
++    const out = [];
++    for (const msg of messages) {
++      if (msg.role === "system") {
++        continue;
++      }
+       if (msg.role === "tool") {
+-        return {
++        out.push({
+           role: "user",
+-          content: `Tool result: ${msg.content}`
+-        };
++          content: [
++            { type: "tool_result", tool_use_id: msg.tool_call_id, content: String(msg.content ?? "") }
++          ]
++        });
++        continue;
+       }
+-      return {
+-        role: msg.role === "assistant" ? "assistant" : "user",
+-        content: msg.content || ""
+-      };
+-    });
++      if (msg.role === "assistant") {
++        const blocks = [];
++        const text = typeof msg.content === "string" ? msg.content.trim() : "";
++        if (text) {
++          blocks.push({ type: "text", text });
++        }
++        for (const toolCall of msg.tool_calls || []) {
++          let input = {};
++          try {
++            input = JSON.parse(toolCall.function?.arguments || "{}");
++          } catch {
++            input = {};
++          }
++          blocks.push({ type: "tool_use", id: toolCall.id, name: toolCall.function?.name, input });
++        }
++        if (blocks.length > 0) {
++          out.push({ role: "assistant", content: blocks });
++        }
++        continue;
++      }
++      const userText = typeof msg.content === "string" ? msg.content : "";
++      if (userText.trim()) {
++        out.push({ role: "user", content: userText });
++      }
++    }
++    return out;
+   }
+   convertToAnthropicTools(tools) {
+     return tools.map((tool) => ({
+diff --git a/dist/services/MCPClientServiceImpl.cjs.js b/dist/services/MCPClientServiceImpl.cjs.js
+index 7d0c06a196eaec234e508f07f4afd08032bf4d0e..6c7e6f424c84151cbf4c58301f0d64dcd7202c4e 100644
+--- a/dist/services/MCPClientServiceImpl.cjs.js
++++ b/dist/services/MCPClientServiceImpl.cjs.js
+@@ -354,14 +354,38 @@ class MCPClientServiceImpl {
+     }
+     const filteredTools = enabledTools !== void 0 && enabledTools !== null ? this.tools.filter((tool) => enabledTools.includes(tool.serverId)) : this.tools;
+     const llmTools = filteredTools.map(({ serverId, ...tool }) => tool);
+-    const response = await this.llmProvider.sendMessage(messages, llmTools);
+-    const replyMessage = response.choices[0].message;
+-    this.logger.info(
+-      `LLM response received with ${replyMessage.tool_calls?.length || 0} tool calls`
+-    );
+-    const toolCalls = replyMessage.tool_calls || [];
+-    if (toolCalls.length > 0) {
+-      const toolResponses = [];
++    // Keep going while the model asks for tools, passing the tool list every round. A
++    // single round followed by a tool-less follow-up cannot answer anything needing a
++    // second step ("find the errors, then say where they come from"): the model has
++    // nothing to call, returns no text, and the user sees an empty reply.
++    const MAX_TOOL_ROUNDS = 8;
++    const allToolCalls = [];
++    const allToolResponses = [];
++    let response = await this.llmProvider.sendMessage(messages, llmTools);
++    let replyMessage = response.choices[0].message;
++    let round = 0;
++    while ((replyMessage.tool_calls || []).length > 0) {
++      const toolCalls = replyMessage.tool_calls || [];
++      this.logger.info(
++        `LLM response received with ${toolCalls.length} tool calls (round ${round + 1})`
++      );
++      if (round >= MAX_TOOL_ROUNDS) {
++        // Stopping mid-investigation leaves replyMessage holding tool calls and no
++        // text, which would surface as a blank answer. Ask for a written answer from
++        // what has been gathered instead.
++        this.logger.warn(
++          `Reached ${MAX_TOOL_ROUNDS} rounds of tool calls; asking for a final answer`
++        );
++        messages.push({
++          role: "user",
++          content: "You have reached the tool call limit. Answer now using what you have already gathered, and say what remains unverified. Do not request more tools."
++        });
++        const forced = await this.llmProvider.sendMessage(messages, llmTools);
++        replyMessage = forced.choices[0].message;
++        break;
++      }
++      round++;
++      allToolCalls.push(...toolCalls);
+       for (const toolCall of toolCalls) {
+         try {
+           const toolResponse = await utils.executeToolCall(
+@@ -370,7 +394,7 @@ class MCPClientServiceImpl {
+             this.mcpClients,
+             this.toolCallTimeout
+           );
+-          toolResponses.push(toolResponse);
++          allToolResponses.push(toolResponse);
+           messages.push({
+             role: "assistant",
+             content: null,
+@@ -391,7 +415,7 @@ class MCPClientServiceImpl {
+             result: errorMessage,
+             serverId: "error"
+           };
+-          toolResponses.push(errorResponse);
++          allToolResponses.push(errorResponse);
+           messages.push({
+             role: "assistant",
+             content: null,
+@@ -404,17 +428,16 @@ class MCPClientServiceImpl {
+           });
+         }
+       }
+-      const followUp = await this.llmProvider.sendMessage(messages);
+-      return {
+-        reply: followUp.choices[0].message.content || "",
+-        toolCalls,
+-        toolResponses
+-      };
++      response = await this.llmProvider.sendMessage(messages, llmTools);
++      replyMessage = response.choices[0].message;
+     }
++    this.logger.info(
++      `LLM finished after ${round} round(s) of tool calls, ${allToolCalls.length} call(s) total`
++    );
+     return {
+       reply: replyMessage.content || "",
+-      toolCalls: [],
+-      toolResponses: []
++      toolCalls: allToolCalls,
++      toolResponses: allToolResponses
+     };
+   }
+   /**
+diff --git a/dist/utils.cjs.js b/dist/utils.cjs.js
+index f519377981e904e4ae2079657fa6701f2c32a845..ff2c2824e39d73a96bd8cb98c52c06370d7bc80c 100644
+--- a/dist/utils.cjs.js
++++ b/dist/utils.cjs.js
+@@ -242,7 +242,10 @@ const validateMessages = (messages) => {
+       };
+     }
+     if (message.content === null || typeof message.content === "string" && message.content.trim() === "") {
+-      if (message.role !== "tool") {
++      // An assistant turn that only calls tools has no text content, and the history
++      // replays it on the next user message.
++      const isToolCallTurn = message.role === "assistant" && Array.isArray(message.tool_calls) && message.tool_calls.length > 0;
++      if (message.role !== "tool" && !isToolCallTurn) {
+         return {
+           isValid: false,
+           error: `Message at index ${i} has empty content`

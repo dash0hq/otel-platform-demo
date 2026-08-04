@@ -62,5 +62,6 @@ fi
 
 echo "Cleanup complete!"
 echo ""
-echo "Note: the Backstage catalog entry for any scaffolded service lives in"
-echo "Backstage's own database, not in this repo, and is not removed here."
+echo "Note: a scaffolded service also disappears from the Backstage catalog on its"
+echo "own within ~10s, because the catalog discovers services by scanning"
+echo "services/*/catalog-info.yaml rather than from a static list."

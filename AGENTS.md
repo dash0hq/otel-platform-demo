@@ -439,10 +439,23 @@ Endpoint shapes matter too: `GET /todos` returns a Spring `Page` object, so
 ## The mcp-chat plugin is patched locally
 
 The "Ask Dash0" page is `@backstage-community/plugin-mcp-chat`, wired to the Dash0
-MCP server through the `mcpChat` block in `backstage/app-config.yaml`. It carries a
-committed patch — `backstage/.yarn/patches/` plus the `patch:` dependency in
-`backstage/packages/app/package.json` — so `yarn install` reapplies it. Do not
-"clean up" either one.
+MCP server through the `mcpChat` block in `backstage/app-config.yaml`. **Two** committed
+patches live in `backstage/.yarn/patches/`, referenced by `patch:` dependencies in
+`packages/app/package.json` (frontend) and `packages/backend/package.json` (backend), so
+`yarn install` reapplies them. Do not "clean up" either.
+
+### `mcpChat.systemPrompt` only works because of a patch
+
+The Claude provider built the Anthropic request as `{model, max_tokens, messages}` and
+`convertToAnthropicFormat()` filtered out `role: "system"` messages — the Messages API
+takes the system prompt as a top-level `system` parameter, so the whole of
+`mcpChat.systemPrompt` was **silently discarded**. Every instruction appeared to be
+ignored by the model: dataset selection, time ranges, formatting. The backend patch adds
+the missing `request.system`.
+
+If prompt instructions ever stop taking effect, check that patch first. To test whether
+the prompt is reaching the model at all, ask it directly — e.g. "do your instructions
+mention X? YES or NO" — rather than inferring from behaviour.
 
 The patch is one line: the plugin renders assistant replies through
 `react-markdown` without passing `remarkPlugins`, so markdown tables arrived in
