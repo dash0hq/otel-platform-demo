@@ -1,4 +1,15 @@
 site_name: frontend
+site_description: React UI and edge proxy for the todo application
 docs_dir: docs
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Operations: operations.md
 plugins:
   - techdocs-core
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format ''

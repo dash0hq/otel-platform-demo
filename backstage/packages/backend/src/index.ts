@@ -9,7 +9,8 @@
 import { createBackend } from '@backstage/backend-defaults';
 import { createBackendModule } from '@backstage/backend-plugin-api';
 import { createPublishLocalAction } from './scaffolder/actions';
-import { scaffolderActionsExtensionPoint } from '@backstage/plugin-scaffolder-node/alpha';
+import { scaffolderActionsExtensionPoint } from '@backstage/plugin-scaffolder-node';
+import { catalogModuleScaffoldedServices } from './catalog/scaffoldedServicesProvider';
 
 const backend = createBackend();
 
@@ -56,8 +57,20 @@ backend.add(
   import('@backstage/plugin-catalog-backend-module-scaffolder-entity-model'),
 );
 
+// Discovers services/<name>/catalog-info.yaml on a short interval, so a service
+// scaffolded during the demo joins the catalog without editing app-config.yaml or
+// restarting -- and leaves it again when 02_cleanup.sh deletes the directory.
+backend.add(catalogModuleScaffoldedServices);
+
 // See https://backstage.io/docs/features/software-catalog/configuration#subscribing-to-catalog-errors
 backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
+
+// mcp-actions plugin: serves the actions registered by the plugins listed in
+// backend.actions.pluginSources as MCP tools over streamable HTTP. This is what
+// gives the chat read-only access to the catalog -- see mcpActions in
+// app-config.yaml for the server definition and the filter that keeps the
+// mutating catalog actions out.
+backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
 // permission plugin
 backend.add(import('@backstage/plugin-permission-backend'));
@@ -79,6 +92,14 @@ backend.add(import('@backstage/plugin-search-backend-module-techdocs'));
 
 // kubernetes plugin
 backend.add(import('@backstage/plugin-kubernetes-backend'));
+
+// mcp-chat plugin: chat UI backed by MCP servers (see mcpChat in app-config.yaml).
+// Loaded only when a provider key is present: the plugin throws during init if the
+// key is missing, and a backend plugin failing startup takes the whole backend down
+// with it -- which would break the catalog and scaffolder too.
+if (process.env.ANTHROPIC_API_KEY) {
+  backend.add(import('@backstage-community/plugin-mcp-chat-backend'));
+}
 
 // notifications and signals plugins
 backend.add(import('@backstage/plugin-notifications-backend'));

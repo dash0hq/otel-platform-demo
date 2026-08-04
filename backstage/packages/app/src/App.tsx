@@ -4,6 +4,8 @@ import {
   CatalogEntityPage,
   CatalogIndexPage,
   catalogPlugin,
+  CatalogTable,
+  type CatalogTableColumnsFunc,
 } from '@backstage/plugin-catalog';
 import {
   CatalogImportPage,
@@ -19,6 +21,7 @@ import {
 } from '@backstage/plugin-techdocs';
 import { TechDocsAddons } from '@backstage/plugin-techdocs-react';
 import { ReportIssue } from '@backstage/plugin-techdocs-module-addons-contrib';
+import { Mermaid } from 'backstage-plugin-techdocs-addon-mermaid';
 import { UserSettingsPage } from '@backstage/plugin-user-settings';
 import { apis } from './apis';
 import { entityPage } from './components/catalog/EntityPage';
@@ -31,113 +34,30 @@ import {
   SignInPage,
 } from '@backstage/core-components';
 import { createApp } from '@backstage/app-defaults';
+import AccountTreeIcon from '@material-ui/icons/AccountTree';
+import ShowChartIcon from '@material-ui/icons/ShowChart';
+import StorageIcon from '@material-ui/icons/Storage';
+import { Dash0Icon } from './components/icons/Dash0Icon';
 import { AppRouter, FlatRoutes } from '@backstage/core-app-api';
 import { CatalogGraphPage } from '@backstage/plugin-catalog-graph';
 import { RequirePermission } from '@backstage/plugin-permission-react';
 import { catalogEntityCreatePermission } from '@backstage/plugin-catalog-common/alpha';
 import { NotificationsPage } from '@backstage/plugin-notifications';
 import { SignalsDisplay } from '@backstage/plugin-signals';
-import { createUnifiedTheme, genPageTheme, UnifiedThemeProvider, palettes } from '@backstage/theme';
-
-const customTheme = createUnifiedTheme({
-  palette: {
-    ...palettes.dark,
-    primary: {
-      main: '#f9503c',
-      light: '#fa9266',
-      dark: '#e63e28',
-    },
-    background: {
-      default: '#18181b',
-      paper: '#1f1f22',
-    },
-    navigation: {
-      ...palettes.dark.navigation,
-      background: '#1f1f22',
-    },
-  },
-  defaultPageTheme: 'home',
-  pageTheme: {
-    home: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    documentation: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    tool: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    service: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    website: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    library: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    other: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    app: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-    apis: genPageTheme({ colors: ['#f9503c', '#fa9266'], shape: 'wave' }),
-  },
-  components: {
-    BackstageHeader: {
-      styleOverrides: {
-        header: {
-          background: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          backgroundImage: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          color: '#000000',
-        },
-        title: {
-          color: '#000000',
-        },
-        subtitle: {
-          color: '#000000',
-        },
-      },
-    },
-    BackstageItemCardHeader: {
-      styleOverrides: {
-        root: {
-          background: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          backgroundImage: 'radial-gradient(circle at center, #f9503c 0%, #fa9266 100%)',
-          color: '#000000',
-          '& .MuiTypography-root': {
-            color: '#000000',
-          },
-          '& h3, & h4, & h5, & h6': {
-            color: '#000000',
-          },
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        root: {
-          '&[data-testid="column-lifecycle"]': {
-            display: 'none',
-          },
-          '&[data-testid="column-system"]': {
-            display: 'none',
-          },
-          '&[data-testid="column-actions"]': {
-            display: 'none',
-          },
-        },
-        head: {
-          '&:has([title="Lifecycle"])': {
-            display: 'none',
-          },
-          '&:has([title="System"])': {
-            display: 'none',
-          },
-          '&:has([title="Actions"])': {
-            display: 'none',
-          },
-        },
-      },
-    },
-  },
-});
+import { McpChatPage } from '@backstage-community/plugin-mcp-chat';
 
 const app = createApp({
   apis,
-  themes: [{
-    id: 'custom-dark',
-    title: 'Custom Dark',
-    variant: 'dark',
-    Provider: ({ children }) => (
-      <UnifiedThemeProvider theme={customTheme} children={children} />
-    ),
-  }],
+  // Icon names usable as `icon:` on entity links. The built-in set is small
+  // (dashboard, docs, search, github, ...) and does NOT include `web`; an
+  // unregistered name falls back to a generic icon with no warning, so anything
+  // referenced from catalog-info.yaml has to be added here.
+  icons: {
+    dash0: Dash0Icon,
+    trace: AccountTreeIcon,
+    chart: ShowChartIcon,
+    logs: StorageIcon,
+  },
   bindRoutes({ bind }) {
     bind(catalogPlugin.externalRoutes, {
       createComponent: scaffolderPlugin.routes.root,
@@ -160,10 +80,33 @@ const app = createApp({
   },
 });
 
+// The default column set includes Lifecycle and System, neither of which carries
+// information in this demo -- every component is `experimental` and none belongs to
+// a System. The columns are listed explicitly rather than filtered out of
+// defaultColumnsFunc by title, because those titles are translated strings.
+const catalogColumns: CatalogTableColumnsFunc = () => [
+  CatalogTable.columns.createTitleColumn({ hidden: true }),
+  CatalogTable.columns.createNameColumn({ defaultKind: 'Component' }),
+  CatalogTable.columns.createOwnerColumn(),
+  CatalogTable.columns.createSpecTypeColumn(),
+  CatalogTable.columns.createMetadataDescriptionColumn(),
+  CatalogTable.columns.createTagsColumn(),
+];
+
+// The API explorer, minus System, Tags and Lifecycle. Its props take a plain array
+// rather than the function the catalog page uses.
+const apiColumns = [
+  CatalogTable.columns.createTitleColumn({ hidden: true }),
+  CatalogTable.columns.createNameColumn({ defaultKind: 'API' }),
+  CatalogTable.columns.createOwnerColumn(),
+  CatalogTable.columns.createSpecTypeColumn(),
+  CatalogTable.columns.createMetadataDescriptionColumn(),
+];
+
 const routes = (
   <FlatRoutes>
     <Route path="/" element={<Navigate to="catalog" />} />
-    <Route path="/catalog" element={<CatalogIndexPage />} />
+    <Route path="/catalog" element={<CatalogIndexPage columns={catalogColumns} />} />
     <Route
       path="/catalog/:namespace/:kind/:name"
       element={<CatalogEntityPage />}
@@ -177,10 +120,11 @@ const routes = (
     >
       <TechDocsAddons>
         <ReportIssue />
+        <Mermaid />
       </TechDocsAddons>
     </Route>
     <Route path="/create" element={<ScaffolderPage />} />
-    <Route path="/api-docs" element={<ApiExplorerPage />} />
+    <Route path="/api-docs" element={<ApiExplorerPage columns={apiColumns} />} />
     <Route
       path="/catalog-import"
       element={
@@ -195,6 +139,7 @@ const routes = (
     <Route path="/settings" element={<UserSettingsPage />} />
     <Route path="/catalog-graph" element={<CatalogGraphPage />} />
     <Route path="/notifications" element={<NotificationsPage />} />
+    <Route path="/mcp-chat" element={<McpChatPage />} />
   </FlatRoutes>
 );
 

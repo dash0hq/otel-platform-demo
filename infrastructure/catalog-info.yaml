@@ -1,0 +1,174 @@
+---
+# The infrastructure the services run on, as catalog Resources.
+#
+# Unlike services/*/catalog-info.yaml -- which is discovered by the
+# scaffolded-services entity provider because services come and go during the demo
+# -- this file is registered statically in app-config.yaml. The infrastructure is
+# fixed by the deploy scripts, so there is nothing to discover.
+#
+# The operators (cert-manager, mysql-operator, opentelemetry-operator, the RabbitMQ
+# cluster operator) are deliberately left out: they are install-time plumbing and
+# would add nodes to the dependency graph that no service talks to.
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kind-cluster
+  title: kind cluster (otel-platform-demo)
+  description: >-
+    The local multi-node Kubernetes cluster created by 00_run.sh. Everything except
+    Dash0 runs here.
+  tags:
+    - kubernetes
+spec:
+  type: kubernetes-cluster
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: mysql
+  title: MySQL (my-mysql)
+  description: >-
+    Shared MySQL instance. todo-service uses the `todo` database and
+    notification-service uses `notification`. Deployed via the MySQL operator as an
+    InnoDB cluster, reachable at my-mysql.default.svc.cluster.local:3306.
+  tags:
+    - database
+spec:
+  type: database
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: rabbitmq
+  title: RabbitMQ
+  description: >-
+    Message broker carrying todo lifecycle events. Exchange `todo.events` with
+    queues `todo.created` and `todo.deleted`. AMQP on 5672, management UI on 15672,
+    Prometheus metrics on 15692.
+  tags:
+    - messaging
+spec:
+  type: message-broker
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: otel-collector
+  title: OpenTelemetry Collector
+  description: >-
+    Receives OTLP from every service and from the browser, enriches it with
+    Kubernetes attributes, and fans it out to Dash0, OpenSearch and Jaeger. Runs as
+    both a DaemonSet (otel-collector-agent) and a Deployment in the `opentelemetry`
+    namespace.
+  tags:
+    - opentelemetry
+  links:
+    - url: http://localhost:3001/v1/traces
+      title: Browser OTLP endpoint (via frontend proxy)
+      icon: chart
+spec:
+  type: telemetry-pipeline
+  owner: platform-team
+  dependsOn:
+    - resource:default/dash0
+    - resource:default/opensearch
+    - resource:default/jaeger
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: dash0
+  title: Dash0
+  description: >-
+    The primary observability backend, and the only component not running in the
+    kind cluster. Receives the full-fidelity telemetry stream from the collector.
+  tags:
+    - observability
+  links:
+    - url: https://app.dash0.com/services?org=6517f2d8-1d85-41db-9450-f98f5e38294e&dataset=default
+      title: Service catalog in Dash0
+      icon: dash0
+spec:
+  type: observability-backend
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: opensearch
+  title: OpenSearch
+  description: >-
+    Log store used as the open-source comparison sink. Fed by a separate branch of
+    the collector's logs pipeline that strips attributes OpenSearch's dynamic
+    mapping cannot index. OpenSearch Dashboards is exposed alongside it on 5601.
+  tags:
+    - logs
+  links:
+    - url: http://localhost:5601
+      title: OpenSearch Dashboards
+      icon: logs
+spec:
+  type: log-store
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: prometheus
+  title: Prometheus
+  description: >-
+    Scrapes metrics from the cluster, including the span metrics Jaeger derives for
+    its Monitor tab. Backs the Perses dashboards.
+  tags:
+    - metrics
+  links:
+    - url: http://localhost:9090
+      title: Prometheus UI
+      icon: chart
+spec:
+  type: metrics-store
+  owner: platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: jaeger
+  title: Jaeger
+  description: >-
+    Open-source tracing backend (v2, single binary). Stores traces in memory and
+    derives RED metrics with the span_metrics connector, which it reads back from
+    Prometheus to populate the Monitor tab.
+  tags:
+    - tracing
+  links:
+    - url: http://localhost:16686
+      title: Jaeger UI
+      icon: trace
+spec:
+  type: tracing-backend
+  owner: platform-team
+  dependsOn:
+    - resource:default/prometheus
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: perses
+  title: Perses
+  description: >-
+    Dashboards as code. Each service ships its dashboard under dashboards/, applied
+    by step 9 and by the scaffolded deploy.sh.
+  tags:
+    - dashboards
+  links:
+    - url: http://localhost:8000
+      title: Perses UI
+      icon: dashboard
+spec:
+  type: dashboards
+  owner: platform-team
+  dependsOn:
+    - resource:default/prometheus

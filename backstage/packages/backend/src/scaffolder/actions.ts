@@ -6,17 +6,19 @@ export const createPublishLocalAction = () => {
   return createTemplateAction({
     id: 'publish:local',
     description: 'Publishes the scaffolder output to a local directory',
+    // Each field is a zod builder; the JSON schema is derived from it.
     schema: {
       input: {
-        type: 'object',
-        required: ['targetPath'],
-        properties: {
-          targetPath: {
-            type: 'string',
-            title: 'Target Path',
-            description: 'The path relative to the repository root where files should be copied',
-          },
-        },
+        targetPath: z =>
+          z
+            .string()
+            .describe(
+              'The path relative to the repository root where files should be copied',
+            ),
+      },
+      output: {
+        targetPath: z =>
+          z.string().describe('Absolute path the files were published to'),
       },
     },
     async handler(ctx) {
@@ -34,10 +36,9 @@ export const createPublishLocalAction = () => {
       // Ensure target directory exists
       await fs.ensureDir(path.dirname(absoluteTargetPath));
 
-      // Copy all files from workspace to target
+      // Copy all files from workspace to target (fs-extra recurses by default)
       await fs.copy(workspacePath, absoluteTargetPath, {
         overwrite: true,
-        recursive: true,
       });
 
       ctx.logger.info(`Successfully published to ${absoluteTargetPath}`);

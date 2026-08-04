@@ -5,14 +5,25 @@ metadata:
   description: React frontend application for the todo application
   annotations:
     backstage.io/techdocs-ref: dir:.
+  links:
+    - url: https://app.dash0.com/goto/services/details?org=6517f2d8-1d85-41db-9450-f98f5e38294e&dataset=default&service_name=frontend&from=now-1h&to=now
+      title: Service details in Dash0
+      icon: dash0
+    - url: http://localhost:16686/search?service=frontend&operation=all&lookback=1h
+      title: Traces in Jaeger
+      icon: trace
+    - url: http://localhost:9090/graph?g0.expr=%7Bservice_name%3D%22frontend%22%7D&g0.tab=1&g0.range_input=1h
+      title: Metrics in Prometheus
+      icon: chart
   tags:
     - react
-    - typescript
-    - frontend
-    - nginx
 spec:
   type: website
   lifecycle: experimental
-  owner: guests
+  owner: web-team
   consumesApis:
     - todo-api
+  dependsOn:
+    - component:default/todo-service
+    - component:default/notification-service
+    - resource:default/otel-collector

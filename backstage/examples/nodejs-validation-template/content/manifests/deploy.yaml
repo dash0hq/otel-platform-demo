@@ -2,17 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: ${{ values.serviceName }}
+    app.kubernetes.io/name: ${{ values.serviceName }}
   name: ${{ values.serviceName }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ${{ values.serviceName }}
+      app.kubernetes.io/name: ${{ values.serviceName }}
   template:
     metadata:
       labels:
-        app: ${{ values.serviceName }}
+        app.kubernetes.io/name: ${{ values.serviceName }}
       annotations:
         instrumentation.opentelemetry.io/inject-nodejs: "opentelemetry/instrumentation"
     spec:

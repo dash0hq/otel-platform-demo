@@ -1,0 +1,15 @@
+site_name: notification-service
+site_description: Event-driven notification consumer
+docs_dir: docs
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Operations: operations.md
+plugins:
+  - techdocs-core
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format ''

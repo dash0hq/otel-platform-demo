@@ -1,12 +1,15 @@
-FROM node:18-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# npm ci, not npm install: it installs exactly what package-lock.json pins and fails
+# if the lockfile and package.json disagree. `npm install` would silently resolve new
+# minor/patch versions at build time, which for a 0.x dependency like @dash0/sdk-web
+# can change instrumentation behaviour without any change in this repo.
+RUN npm ci
 
 # Copy source code
 COPY . .

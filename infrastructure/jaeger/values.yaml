@@ -1,30 +1,116 @@
-enabled: true
+# Jaeger v2 (chart 4.x): a single binary configured like an OpenTelemetry
+# Collector, exposed by the chart under `jaeger`.
+#
+# One Service named `jaeger` carries every port, so anything sending traces or
+# opening the UI addresses `jaeger` -- there are no separate collector/query/agent
+# services to target.
+#
+# `storage.type` has no effect here; storage is declared in the config below.
+# In-memory suits the demo, since the cluster is recreated for every run.
 fullnameOverride: jaeger
-provisionDataStore:
-  cassandra: false
-allInOne:
-  enabled: true
-  args:
-    - "--memory.max-traces=5000"
-    - "--query.base-path=/jaeger/ui"
-    - "--prometheus.server-url=http://prometheus:9090"
-    - "--prometheus.query.normalize-calls=true"
-    - "--prometheus.query.normalize-duration=true"
-  extraEnv:
-    - name: METRICS_STORAGE_TYPE
-      value: prometheus
-    - name: COLLECTOR_OTLP_GRPC_HOST_PORT
-      value: 0.0.0.0:4317
-    - name: COLLECTOR_OTLP_HTTP_HOST_PORT
-      value: 0.0.0.0:4318
+
+jaeger:
+  image:
+    # Jaeger's own registry is what the upstream docs use; it also keeps the demo
+    # off Docker Hub's anonymous pull limits.
+    registry: cr.jaegertracing.io
   resources:
     limits:
       memory: 400Mi
-storage:
-  type: memory
-agent:
-  enabled: false
-collector:
-  enabled: false
-query:
-  enabled: false
+  # Let the demo's Prometheus scrape the span metrics the spanmetrics connector
+  # produces (port 8889 below), which is what powers the Monitor tab.
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8889"
+
+# Surface the Monitor tab in the UI.
+uiconfig:
+  monitor:
+    menuEnabled: true
+
+# Full v2 config. Adapted from the upstream reference for Service Performance
+# Monitoring, cmd/jaeger/config-spm.yaml at v2.20.0, which is the shape the Jaeger
+# docs point at for SPM with a Prometheus metrics backend.
+#
+# Note the flow: Jaeger receives spans over OTLP, stores them in memory, and the
+# span_metrics connector derives RED metrics from the same spans and exposes them
+# on :8889 for Prometheus to scrape. jaeger_query then reads those metrics back out
+# of Prometheus for the Monitor tab. Both halves are required -- pointing
+# jaeger_query at Prometheus alone leaves the tab empty.
+userconfig:
+  service:
+    extensions: [jaeger_storage, jaeger_query, healthcheckv2]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [jaeger_storage_exporter, span_metrics]
+      metrics/spanmetrics:
+        receivers: [span_metrics]
+        exporters: [prometheus]
+    telemetry:
+      resource:
+        service.name: jaeger
+      metrics:
+        level: detailed
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: 0.0.0.0
+                  port: 8888
+      logs:
+        level: info
+
+  extensions:
+    healthcheckv2:
+      use_v2: true
+      http:
+        # The chart's liveness/readiness probes hit :13133/status. This has to bind
+        # 0.0.0.0, not the default localhost, or the kubelet cannot reach it and the
+        # pod never goes ready.
+        endpoint: 0.0.0.0:13133
+
+    jaeger_query:
+      storage:
+        traces: memstore
+        metrics: metricstore
+      ui:
+        # The chart renders the `uiconfig` value above into a ConfigMap and mounts
+        # it here, but nothing reads it unless the config points at the file.
+        config_file: /etc/jaeger/ui-config.json
+
+    jaeger_storage:
+      backends:
+        memstore:
+          memory:
+            max_traces: 5000
+      metric_backends:
+        metricstore:
+          prometheus:
+            endpoint: http://prometheus:9090
+            # Prometheus exposes the counters as calls_total and
+            # duration_milliseconds_bucket; without these Jaeger looks for
+            # calls and duration_bucket and finds nothing.
+            normalize_calls: true
+            normalize_duration: true
+
+  connectors:
+    span_metrics:
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    batch:
+
+  exporters:
+    jaeger_storage_exporter:
+      trace_storage: memstore
+    prometheus:
+      endpoint: 0.0.0.0:8889

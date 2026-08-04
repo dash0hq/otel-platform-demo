@@ -23,7 +23,18 @@ server:
     servicePort: 9090
   resources:
     limits:
-      memory: 300Mi
+      # 300Mi was not enough: Prometheus holds ~69k active series here and was
+      # OOMKilled every few hours (123 restarts in one run). It recovers each time, so
+      # nothing looks broken -- it just loses its in-memory data, leaving gaps in the
+      # dashboards.
+      #
+      # Most of that cardinality comes from the chart's default scrape jobs, which this
+      # demo never queries: kubernetes-api-servers alone is ~36k series, plus ~16k from
+      # the node/cadvisor jobs. The dashboards' metrics arrive by OTLP push from the
+      # collector. Restricting scrape_configs to `kubernetes-pods` (needed for Jaeger's
+      # :8889 span metrics) would cut ~80% of the series; not done here because a bad
+      # override silently empties Jaeger's Monitor tab.
+      memory: 1Gi
 serverFiles:
   prometheus.yml:
     otlp:

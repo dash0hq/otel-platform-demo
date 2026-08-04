@@ -1,4 +1,4 @@
-import { Button, Grid } from '@material-ui/core';
+import { Grid } from '@material-ui/core';
 import {
   EntityApiDefinitionCard,
   EntityConsumedApisCard,
@@ -16,6 +16,7 @@ import {
   EntityHasSubcomponentsCard,
   EntityHasSystemsCard,
   EntityLayout,
+  EntityLinksCard,
   EntitySwitch,
   EntityOrphanWarning,
   EntityProcessingErrorsPanel,
@@ -33,7 +34,6 @@ import {
   EntityOwnershipCard,
 } from '@backstage/plugin-org';
 import { EntityTechdocsContent } from '@backstage/plugin-techdocs';
-import { EmptyState } from '@backstage/core-components';
 import {
   Direction,
   EntityCatalogGraphCard,
@@ -51,6 +51,7 @@ import {
 
 import { TechDocsAddons } from '@backstage/plugin-techdocs-react';
 import { ReportIssue } from '@backstage/plugin-techdocs-module-addons-contrib';
+import { Mermaid } from 'backstage-plugin-techdocs-addon-mermaid';
 
 import {
   EntityKubernetesContent,
@@ -61,38 +62,11 @@ const techdocsContent = (
   <EntityTechdocsContent>
     <TechDocsAddons>
       <ReportIssue />
+      {/* Renders the ```mermaid fences in the service docs. Needed here as well as
+          in App.tsx -- the entity Docs tab is a separate TechDocs viewer. */}
+      <Mermaid />
     </TechDocsAddons>
   </EntityTechdocsContent>
-);
-
-const cicdContent = (
-  // This is an example of how you can implement your company's logic in entity page.
-  // You can for example enforce that all components of type 'service' should use GitHubActions
-  <EntitySwitch>
-    {/*
-      Here you can add support for different CI/CD services, for example
-      using @backstage-community/plugin-github-actions as follows:
-      <EntitySwitch.Case if={isGithubActionsAvailable}>
-        <EntityGithubActionsContent />
-      </EntitySwitch.Case>
-     */}
-    <EntitySwitch.Case>
-      <EmptyState
-        title="No CI/CD available for this entity"
-        missing="info"
-        description="You need to add an annotation to your component if you want to enable CI/CD for it. You can read more about annotations in Backstage by clicking the button below."
-        action={
-          <Button
-            variant="contained"
-            color="primary"
-            href="https://backstage.io/docs/features/software-catalog/well-known-annotations"
-          >
-            Read more
-          </Button>
-        }
-      />
-    </EntitySwitch.Case>
-  </EntitySwitch>
 );
 
 const entityWarningContent = (
@@ -127,14 +101,21 @@ const overviewContent = (
   <Grid container spacing={3} alignItems="stretch">
     {entityWarningContent}
     <Grid item md={6}>
-      <EntityAboutCard variant="gridItem" />
+      <EntityAboutCard />
     </Grid>
     <Grid item md={6} xs={12}>
-      <EntityCatalogGraphCard variant="gridItem" height={400} />
+      <EntityCatalogGraphCard height={400} />
+    </Grid>
+
+    {/* metadata.links also renders as small icons in the About card header, which is
+        easy to miss. This surfaces them as a card of their own -- the Dash0 service
+        page for this component, plus any UI links on the infrastructure resources. */}
+    <Grid item md={6} xs={12}>
+      <EntityLinksCard />
     </Grid>
 
     <Grid item md={12} xs={12}>
-      <EntityHasSubcomponentsCard variant="gridItem" />
+      <EntityHasSubcomponentsCard />
     </Grid>
   </Grid>
 );
@@ -143,10 +124,6 @@ const serviceEntityPage = (
   <EntityLayout>
     <EntityLayout.Route path="/" title="Overview">
       {overviewContent}
-    </EntityLayout.Route>
-
-    <EntityLayout.Route path="/ci-cd" title="CI/CD">
-      {cicdContent}
     </EntityLayout.Route>
 
     <EntityLayout.Route
@@ -171,10 +148,10 @@ const serviceEntityPage = (
     <EntityLayout.Route path="/dependencies" title="Dependencies">
       <Grid container spacing={3} alignItems="stretch">
         <Grid item md={6}>
-          <EntityDependsOnComponentsCard variant="gridItem" />
+          <EntityDependsOnComponentsCard />
         </Grid>
         <Grid item md={6}>
-          <EntityDependsOnResourcesCard variant="gridItem" />
+          <EntityDependsOnResourcesCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>
@@ -191,10 +168,6 @@ const websiteEntityPage = (
       {overviewContent}
     </EntityLayout.Route>
 
-    <EntityLayout.Route path="/ci-cd" title="CI/CD">
-      {cicdContent}
-    </EntityLayout.Route>
-
     <EntityLayout.Route
       path="/kubernetes"
       title="Kubernetes"
@@ -206,10 +179,10 @@ const websiteEntityPage = (
     <EntityLayout.Route path="/dependencies" title="Dependencies">
       <Grid container spacing={3} alignItems="stretch">
         <Grid item md={6}>
-          <EntityDependsOnComponentsCard variant="gridItem" />
+          <EntityDependsOnComponentsCard />
         </Grid>
         <Grid item md={6}>
-          <EntityDependsOnResourcesCard variant="gridItem" />
+          <EntityDependsOnResourcesCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>
@@ -262,7 +235,7 @@ const apiPage = (
           <EntityAboutCard />
         </Grid>
         <Grid item md={6} xs={12}>
-          <EntityCatalogGraphCard variant="gridItem" height={400} />
+          <EntityCatalogGraphCard height={400} />
         </Grid>
         <Grid container item md={12}>
           <Grid item md={6}>
@@ -291,10 +264,10 @@ const userPage = (
       <Grid container spacing={3}>
         {entityWarningContent}
         <Grid item xs={12} md={6}>
-          <EntityUserProfileCard variant="gridItem" />
+          <EntityUserProfileCard />
         </Grid>
         <Grid item xs={12} md={6}>
-          <EntityOwnershipCard variant="gridItem" />
+          <EntityOwnershipCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>
@@ -307,10 +280,10 @@ const groupPage = (
       <Grid container spacing={3}>
         {entityWarningContent}
         <Grid item xs={12} md={6}>
-          <EntityGroupProfileCard variant="gridItem" />
+          <EntityGroupProfileCard />
         </Grid>
         <Grid item xs={12} md={6}>
-          <EntityOwnershipCard variant="gridItem" />
+          <EntityOwnershipCard />
         </Grid>
         <Grid item xs={12} md={12}>
           <EntityMembersListCard />
@@ -326,25 +299,25 @@ const systemPage = (
       <Grid container spacing={3} alignItems="stretch">
         {entityWarningContent}
         <Grid item md={6}>
-          <EntityAboutCard variant="gridItem" />
+          <EntityAboutCard />
         </Grid>
         <Grid item md={6} xs={12}>
-          <EntityCatalogGraphCard variant="gridItem" height={400} />
+          <EntityCatalogGraphCard height={400} />
         </Grid>
         <Grid item md={12}>
-          <EntityHasComponentsCard variant="gridItem" />
+          <EntityHasComponentsCard />
         </Grid>
         <Grid item md={6}>
-          <EntityHasApisCard variant="gridItem" />
+          <EntityHasApisCard />
         </Grid>
         <Grid item md={6}>
-          <EntityHasResourcesCard variant="gridItem" />
+          <EntityHasResourcesCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>
     <EntityLayout.Route path="/diagram" title="Diagram">
       <EntityCatalogGraphCard
-        variant="gridItem"
+       
         direction={Direction.TOP_BOTTOM}
         title="System Diagram"
         height={700}
@@ -370,13 +343,13 @@ const domainPage = (
       <Grid container spacing={3} alignItems="stretch">
         {entityWarningContent}
         <Grid item md={6}>
-          <EntityAboutCard variant="gridItem" />
+          <EntityAboutCard />
         </Grid>
         <Grid item md={6} xs={12}>
-          <EntityCatalogGraphCard variant="gridItem" height={400} />
+          <EntityCatalogGraphCard height={400} />
         </Grid>
         <Grid item md={6}>
-          <EntityHasSystemsCard variant="gridItem" />
+          <EntityHasSystemsCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>

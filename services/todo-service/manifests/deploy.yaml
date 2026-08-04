@@ -2,17 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: todo-service
+    app.kubernetes.io/name: todo-service
   name: todo-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: todo-service
+      app.kubernetes.io/name: todo-service
   template:
     metadata:
       labels:
-        app: todo-service
+        app.kubernetes.io/name: todo-service
       annotations:
         instrumentation.opentelemetry.io/inject-java: "opentelemetry/instrumentation"
     spec:

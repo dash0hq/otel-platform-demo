@@ -37,3 +37,15 @@ spec:
         value: otlp
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
         value: grpc
+      # Opt Node into the stable HTTP semconv (http.request.method,
+      # http.response.status_code) so it agrees with the Java agent; it defaults to the
+      # v1.7.0 names. `http/dup` would emit both generations.
+      #
+      # It belongs here, not in a service: the operator injects the SDK, so the
+      # @opentelemetry/auto-instrumentations-node dependency in package.json does not
+      # instrument the service at runtime and bumping it changes nothing.
+      #
+      # Renames metrics to http_server_request_duration_seconds_* in seconds, so
+      # dashboards querying the legacy millisecond names go silent.
+      - name: OTEL_SEMCONV_STABILITY_OPT_IN
+        value: http

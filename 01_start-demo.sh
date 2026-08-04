@@ -27,10 +27,34 @@ cleanup() {
 # Register cleanup function to run on script exit
 trap cleanup EXIT INT TERM
 
+# Backstage reads ${...} references from its environment, so the values behind the
+# mcpChat block in app-config.yaml have to be exported before `yarn start`.
+if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+fi
+: "${DASH0_MCP_URL:=https://api.eu-west-1.aws.dash0.com/mcp}"
+export DASH0_MCP_URL
+
+# The chat talks to Backstage's own MCP actions endpoint over HTTP, so it needs a
+# token even though both sides live in the same backend. Nothing outside this
+# machine uses it, so generate a fresh one per run rather than storing a secret --
+# set BACKSTAGE_MCP_TOKEN in .env only if you want a stable value.
+: "${BACKSTAGE_MCP_TOKEN:=$(openssl rand -hex 32)}"
+export BACKSTAGE_MCP_TOKEN
+
 echo "======================================"
 echo "Starting Demo Environment"
 echo "======================================"
 echo ""
+
+for var in ANTHROPIC_API_KEY DASH0_MCP_TOKEN; do
+    if [ -z "${!var:-}" ]; then
+        echo "⚠️  $var is not set in .env -- the 'Ask Dash0' chat page will not work."
+    fi
+done
 
 # Start all port-forwards in the background
 echo "Starting port-forwards..."
@@ -47,8 +71,8 @@ echo "  - Perses (port 8000 -> 8080)"
 kubectl port-forward svc/perses 8000:8080 >/dev/null 2>&1 &
 PIDS+=($!)
 
-echo "  - Jaeger Query (port 16686)"
-kubectl port-forward svc/jaeger-query 16686 >/dev/null 2>&1 &
+echo "  - Jaeger (port 16686)"
+kubectl port-forward svc/jaeger 16686 >/dev/null 2>&1 &
 PIDS+=($!)
 
 echo "  - Frontend (port 3001 -> 80)"
@@ -62,7 +86,7 @@ echo "Available services:"
 echo "  - OpenSearch Dashboards: http://localhost:5601"
 echo "  - Prometheus:             http://localhost:9090"
 echo "  - Perses:                 http://localhost:8000"
-echo "  - Jaeger Query:           http://localhost:16686"
+echo "  - Jaeger:                 http://localhost:16686"
 echo "  - Frontend:               http://localhost:3001"
 echo ""
 

@@ -5,7 +5,33 @@ metadata:
   description: ${{ values.description }}
   annotations:
     backstage.io/techdocs-ref: dir:.
+  # Every link is derived from the service name so a scaffolded service arrives with
+  # working deep links. The icon names come from the registry in packages/app/App.tsx
+  # -- an unregistered name silently falls back to a generic icon.
+  links:
+    # The plain /goto/ form, not a URL copied from the browser: those carry an opaque
+    # `s=` parameter (zlib-compressed UI state) that a template cannot generate.
+    - url: https://app.dash0.com/goto/services/details?org=6517f2d8-1d85-41db-9450-f98f5e38294e&dataset=default&service_name=${{ values.serviceName }}&from=now-1h&to=now
+      title: Service details in Dash0
+      icon: dash0
+    # operation=all is explicit: without it the Jaeger UI reuses whichever operation
+    # was last selected in the search form.
+    - url: http://localhost:16686/search?service=${{ values.serviceName }}&operation=all&lookback=1h
+      title: Traces in Jaeger
+      icon: trace
+    - url: http://localhost:9090/graph?g0.expr=%7Bservice_name%3D%22${{ values.serviceName }}%22%7D&g0.tab=1&g0.range_input=1h
+      title: Metrics in Prometheus
+      icon: chart
+    # The scaffolder also writes dashboards/<name>-dashboard.yaml, and the Perses
+    # operator maps the `default` namespace to the `default` project.
+    - url: http://localhost:8000/projects/default/dashboards/${{ values.serviceName }}
+      title: Dashboard in Perses
+      icon: dashboard
+  tags:
+    - nodejs
 spec:
   type: service
   lifecycle: experimental
   owner: ${{ values.owner }}
+  dependsOn:
+    - resource:default/otel-collector

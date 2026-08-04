@@ -111,13 +111,30 @@ config:
             # hostname, see https://kubernetes.io/docs/concepts/containers/container-environment/#container-information.
             enabled: false
 
-    attributes/flatten:
-      actions:
-        - action: insert
-          key: resource.app.kubernetes_io_component
-          from_attribute: app.kubernetes.io/component
+    # OpenSearch-only compatibility shim. Do NOT add this to the Dash0 pipeline.
+    #
+    # OpenSearch splits attribute names on dots into nested objects, so a pod
+    # labelled `app` and a pod labelled `app.kubernetes.io/name` both map to
+    # `resource.app` -- once as a value, once as an object. Whichever indexes
+    # first wins the dynamic mapping and the other is rejected forever with
+    # mapper_parsing_exception, silently dropping those pods' logs.
+    #
+    # Dash0 has no such problem, so the fix is scoped to the OpenSearch branch
+    # rather than degrading what we extract. Only the bare prefix key needs to
+    # go; the namespaced `app.kubernetes.io/*` labels are kept. Third-party
+    # charts using a bare `app` label (cert-manager, kindnet,
+    # local-path-provisioner) are what make this necessary.
+    #
+    # If a new collision appears, add the offending bare key here.
+    resource/opensearch-compat:
+      attributes:
         - action: delete
-          key: app.kubernetes.io/component
+          key: app
+
+  connectors:
+    # Tees the enriched logs stream into the OpenSearch pipeline, so that branch
+    # inherits every receiver and processor the chart's presets add above.
+    forward/opensearch: {}
 
   exporters:
     otlp/dash0:
@@ -133,7 +150,7 @@ config:
         insecure: true
 
     otlp/jaeger:
-      endpoint: jaeger-collector.default.svc.cluster.local:4317 
+      endpoint: jaeger.default.svc.cluster.local:4317 
       tls:
         insecure: true
 
@@ -168,7 +185,18 @@ config:
         receivers: [otlp]
         processors: [resourcedetection, batch]
         exporters: [otlp/dash0, otlp/jaeger]
+      # Dash0 gets the full resource, including every pod label and annotation.
+      # The chart's presets inject extra receivers (filelog) and processors
+      # (k8s_attributes) into this pipeline, so it stays the primary one. The
+      # OpenSearch branch is fed from it through the forward connector rather
+      # than re-declaring those components, which would silently drift the day
+      # the chart changes what it injects.
       logs:
         receivers: [otlp]
-        processors: [resourcedetection, batch, attributes/flatten]
-        exporters: [otlp/dash0, opensearch/log]
+        processors: [resourcedetection, batch]
+        exporters: [otlp/dash0, forward/opensearch]
+      # Same enriched logs, minus the keys OpenSearch cannot map.
+      logs/opensearch:
+        receivers: [forward/opensearch]
+        processors: [resource/opensearch-compat]
+        exporters: [opensearch/log]

@@ -1,5 +1,4 @@
-image:
-  tag: "2.14.0"
+# No image.tag override on purpose: see infrastructure/opensearch/values.yaml.
 
 opensearchHosts: "https://opensearch-cluster-master:9200"
 

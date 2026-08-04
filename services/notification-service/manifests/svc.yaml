@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: notification-service
   labels:
-    app: notification-service
+    app.kubernetes.io/name: notification-service
 spec:
   ports:
   - name: http
@@ -11,5 +11,5 @@ spec:
     protocol: TCP
     targetPort: http
   selector:
-    app: notification-service
+    app.kubernetes.io/name: notification-service
   type: ClusterIP
