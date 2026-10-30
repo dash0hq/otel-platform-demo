@@ -41,9 +41,14 @@ backend:
     credentials: true
   # This is for local development only, it is not recommended to use this in production
   # The production database configuration is stored in app-config.production.yaml
+  # SQLite on disk rather than ':memory:'. The in-memory mode makes every plugin
+  # ask the backstage-cli parent for a data snapshot over IPC at startup, and
+  # `yarn start` builds the frontend in that same parent, which can stall it past
+  # the 5s IPC timeout and kill the backend.
   database:
     client: better-sqlite3
-    connection: ':memory:'
+    connection:
+      directory: ./.sqlite
   # workingDirectory: /tmp # Use this to configure a working directory for the scaffolder, defaults to the OS temp-dir
 
 integrations:
